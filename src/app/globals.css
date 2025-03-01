@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 245, 245, 245;
+}
+
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 10, 10, 10;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #6366F1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #818CF8;
+}
+
+/* Chat Bubble Animations */
+.chat-bubble-appear {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: bubbleAppear 0.3s forwards;
+}
+
+@keyframes bubbleAppear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Typing animation */
+.typing-animation span {
+  width: 8px;
+  height: 8px;
+  background-color: #6366F1;
+  border-radius: 50%;
+  display: inline-block;
+  margin: 0 1px;
+}
+
+.typing-animation span:nth-child(1) {
+  animation: typing 1s infinite 0.1s;
+}
+.typing-animation span:nth-child(2) {
+  animation: typing 1s infinite 0.2s;
+}
+.typing-animation span:nth-child(3) {
+  animation: typing 1s infinite 0.3s;
+}
+
+@keyframes typing {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Voice pulse animation */
+.voice-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* Futuristic grid background */
+.grid-background {
+  background-image: radial-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* AI thinking animation */
+.ai-thinking {
+  position: relative;
+  width: 80px;
+  height: 30px;
+  margin: 0 auto;
+}
+
+.ai-thinking div {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #6366F1;
+  animation-timing-function: cubic-bezier(0, 1, 1, 0);
+}
+
+.ai-thinking div:nth-child(1) {
+  left: 8px;
+  animation: ai-thinking1 0.6s infinite;
+}
+
+.ai-thinking div:nth-child(2) {
+  left: 8px;
+  animation: ai-thinking2 0.6s infinite;
+}
+
+.ai-thinking div:nth-child(3) {
+  left: 32px;
+  animation: ai-thinking2 0.6s infinite;
+}
+
+.ai-thinking div:nth-child(4) {
+  left: 56px;
+  animation: ai-thinking3 0.6s infinite;
+}
+
+@keyframes ai-thinking1 {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ai-thinking3 {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0);
+  }
+}
+
+@keyframes ai-thinking2 {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(24px, 0);
+  }
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
