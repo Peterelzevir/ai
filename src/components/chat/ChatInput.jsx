@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FiSend } from 'react-icons/fi';
+import { FiSend, FiChevronDown } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useChatContext } from '@/context/ChatContext';
 
@@ -10,6 +10,7 @@ export default function ChatInput() {
   const { sendMessage, isProcessing } = useChatContext();
   const inputRef = useRef(null);
   const [rows, setRows] = useState(1);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Focus the input on component mount
   useEffect(() => {
@@ -66,42 +67,58 @@ export default function ChatInput() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2">
-      <div className="relative flex-grow">
-        <textarea
-          ref={inputRef}
-          value={message}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          disabled={isProcessing}
-          placeholder="Type a message..."
-          rows={rows}
-          className="w-full py-2 px-3 bg-dark-900 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent resize-none transition-all text-sm sm:text-base"
-          style={{
-            minHeight: '44px',
-            maxHeight: '150px',
-          }}
-        />
-        <div className="absolute right-2 bottom-1 text-[10px] text-gray-500">
-          {isProcessing ? 'Processing...' : ''}
-        </div>
-      </div>
-      
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        type="submit"
-        disabled={!message.trim() || isProcessing}
+    <div className="max-w-3xl mx-auto w-full relative">
+      <form 
+        onSubmit={handleSubmit} 
         className={`
-          p-2 h-[44px] w-[44px] rounded-full flex items-center justify-center transition-colors
-          ${!message.trim() || isProcessing
-            ? 'bg-dark-800 text-gray-500 cursor-not-allowed'
-            : 'bg-accent text-white hover:bg-accent-light'
-          }
+          flex items-end gap-2 rounded-xl
+          ${isFocused ? 'shadow-glow border-accent' : 'border-primary-600/50'}
+          p-1 border bg-primary-700 transition-all duration-200
         `}
-        aria-label="send message bro!"
       >
-        <FiSend size={18} />
-      </motion.button>
-    </form>
+        <div className="relative flex-grow">
+          <textarea
+            ref={inputRef}
+            value={message}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            disabled={isProcessing}
+            placeholder="Message AI Peter..."
+            rows={rows}
+            className="w-full py-3 px-4 bg-transparent text-primary-50 placeholder-primary-400 focus:outline-none resize-none text-sm leading-6"
+            style={{
+              minHeight: '44px',
+              maxHeight: '150px',
+            }}
+          />
+        </div>
+        
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          type="submit"
+          disabled={!message.trim() || isProcessing}
+          className={`
+            p-2 h-10 w-10 rounded-lg flex items-center justify-center transition-colors
+            ${!message.trim() || isProcessing
+              ? 'text-primary-400 cursor-not-allowed'
+              : 'bg-accent text-white hover:bg-accent-light'
+            }
+          `}
+          aria-label="Send message"
+        >
+          <FiSend size={18} />
+        </motion.button>
+      </form>
+      
+      {/* Keyboard shortcuts */}
+      <div className="absolute right-0 bottom-0 transform translate-y-6 text-xs text-primary-400 flex items-center opacity-70">
+        <span>
+          {isProcessing ? 'Processing...' : 'Press Enter to send, Shift+Enter for new line'}
+        </span>
+        <FiChevronDown size={12} className="ml-1" />
+      </div>
+    </div>
   );
 }
