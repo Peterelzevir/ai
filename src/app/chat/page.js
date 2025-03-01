@@ -14,6 +14,26 @@ export default function ChatPage() {
   const router = useRouter();
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  
+  // Handle window size safely in client-side
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    }
+    
+    // Set initial size
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -62,18 +82,18 @@ export default function ChatPage() {
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-900/80 backdrop-blur-sm"
             >
-              {/* Particles animation background */}
+              {/* Particles animation background - fixed to use windowSize safely */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {[...Array(20)].map((_, i) => (
+                {windowSize.width > 0 && [...Array(20)].map((_, i) => (
                   <motion.div
                     key={i}
                     initial={{ 
-                      x: Math.random() * window.innerWidth, 
-                      y: Math.random() * window.innerHeight,
+                      x: Math.random() * windowSize.width, 
+                      y: Math.random() * windowSize.height,
                       opacity: 0 
                     }}
                     animate={{ 
-                      y: [Math.random() * window.innerHeight, Math.random() * window.innerHeight],
+                      y: [Math.random() * windowSize.height, Math.random() * windowSize.height],
                       opacity: [0, 0.3, 0],
                       scale: [0, 1, 0]
                     }}
