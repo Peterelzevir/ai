@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Prism Theme */
+@import '../styles/prism-theme.css';
+
 :root {
   /* Black & White Modern Theme */
   --foreground-rgb: 255, 255, 255;
