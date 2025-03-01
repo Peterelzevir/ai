@@ -1,4 +1,3 @@
-// /app/api/auth/login/route.js
 import { NextResponse } from 'next/server';
 import { verifyCredentials } from '@/lib/db';
 import { cookies } from 'next/headers';
@@ -9,7 +8,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'ai-peter-secret-key-change-this';
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    // Parse request dengan error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Error parsing login request:', parseError);
+      return NextResponse.json(
+        { success: false, message: 'Format permintaan tidak valid' },
+        { status: 400 }
+      );
+    }
+    
     const { email, password } = body;
     
     // Validasi data
@@ -20,8 +30,17 @@ export async function POST(request) {
       );
     }
     
-    // Verifikasi kredensial
-    const user = await verifyCredentials(email, password);
+    // Verifikasi kredensial dengan error handling
+    let user;
+    try {
+      user = await verifyCredentials(email, password);
+    } catch (verifyError) {
+      console.error('Error verifying credentials:', verifyError);
+      return NextResponse.json(
+        { success: false, message: 'Gagal memverifikasi kredensial' },
+        { status: 500 }
+      );
+    }
     
     if (!user) {
       return NextResponse.json(
@@ -31,25 +50,41 @@ export async function POST(request) {
     }
     
     // Buat JWT token
-    const token = sign(
-      { 
-        id: user.id, 
-        email: user.email,
-        name: user.name 
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' } // Token berlaku 7 hari
-    );
+    let token;
+    try {
+      token = sign(
+        { 
+          id: user.id, 
+          email: user.email,
+          name: user.name 
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' } // Token berlaku 7 hari
+      );
+    } catch (jwtError) {
+      console.error('Error signing JWT:', jwtError);
+      return NextResponse.json(
+        { success: false, message: 'Gagal membuat token otentikasi' },
+        { status: 500 }
+      );
+    }
     
     // Set token ke cookie
-    const cookieStore = cookies();
-    cookieStore.set('auth-token', token, {
-      httpOnly: true,
-      maxAge: 60 * 60 * 24 * 7, // 7 hari
-      path: '/',
-    });
+    try {
+      const cookieStore = cookies();
+      cookieStore.set('auth-token', token, {
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 7, // 7 hari
+        path: '/',
+        secure: process.env.NODE_ENV === 'production', // Hanya HTTPS di production
+        sameSite: 'lax',
+      });
+    } catch (cookieError) {
+      console.error('Error setting cookie:', cookieError);
+      // Masih kembalikan token untuk client-side storage fallback
+    }
     
-    // Berhasil, kembalikan respon sukses
+    // Kembalikan token di JSON juga untuk client-side storage
     return NextResponse.json({
       success: true,
       message: 'Login berhasil',
@@ -57,7 +92,8 @@ export async function POST(request) {
         id: user.id,
         name: user.name,
         email: user.email
-      }
+      },
+      token: token // Client-side fallback
     });
   } catch (error) {
     console.error('Login error:', error);
