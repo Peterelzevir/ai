@@ -22,7 +22,8 @@
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
     "zustand": "^4.4.7",
-    "prismjs": "^1.29.0"
+    "prismjs": "^1.29.0",
+    "lucide-react": "^0.328.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.16",
