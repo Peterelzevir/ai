@@ -3,30 +3,33 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 245, 245, 245;
-}
-
-.dark {
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 0, 0, 0;
   --background-end-rgb: 10, 10, 10;
+  --accent-color: 99, 102, 241;
+  --accent-light-color: 129, 140, 248;
+}
+
+/* Optimize for mobile performance */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
       to bottom,
-      transparent,
+      rgb(var(--background-start-rgb)),
       rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+    );
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - thinner for mobile */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -35,19 +38,27 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #6366F1;
+  background: rgba(var(--accent-color), 0.7);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #818CF8;
+  background: rgba(var(--accent-color), 1);
 }
 
-/* Chat Bubble Animations */
+/* Make scrollbar a bit wider on desktop */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Chat Bubble Animations - optimized for better performance */
 .chat-bubble-appear {
   opacity: 0;
-  transform: translateY(10px);
-  animation: bubbleAppear 0.3s forwards;
+  transform: translateY(5px);
+  animation: bubbleAppear 0.2s forwards;
 }
 
 @keyframes bubbleAppear {
@@ -57,14 +68,27 @@ body {
   }
 }
 
-/* Typing animation */
+/* Typing animation - smaller dots for mobile */
+.typing-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .typing-animation span {
-  width: 8px;
-  height: 8px;
-  background-color: #6366F1;
-  border-radius: 50%;
   display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: rgba(var(--accent-color), 1);
+  border-radius: 50%;
   margin: 0 1px;
+}
+
+@media (min-width: 768px) {
+  .typing-animation span {
+    width: 8px;
+    height: 8px;
+  }
 }
 
 .typing-animation span:nth-child(1) {
@@ -82,7 +106,7 @@ body {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-6px);
   }
 }
 
@@ -102,46 +126,40 @@ body {
   }
 }
 
-/* Futuristic grid background */
-.grid-background {
-  background-image: radial-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px);
-  background-size: 30px 30px;
-}
-
-/* AI thinking animation */
+/* AI thinking animation - optimized for better performance */
 .ai-thinking {
   position: relative;
-  width: 80px;
-  height: 30px;
+  width: 60px;
+  height: 20px;
   margin: 0 auto;
 }
 
 .ai-thinking div {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #6366F1;
+  background: rgba(var(--accent-color), 1);
   animation-timing-function: cubic-bezier(0, 1, 1, 0);
 }
 
 .ai-thinking div:nth-child(1) {
-  left: 8px;
+  left: 6px;
   animation: ai-thinking1 0.6s infinite;
 }
 
 .ai-thinking div:nth-child(2) {
-  left: 8px;
+  left: 6px;
   animation: ai-thinking2 0.6s infinite;
 }
 
 .ai-thinking div:nth-child(3) {
-  left: 32px;
+  left: 26px;
   animation: ai-thinking2 0.6s infinite;
 }
 
 .ai-thinking div:nth-child(4) {
-  left: 56px;
+  left: 46px;
   animation: ai-thinking3 0.6s infinite;
 }
 
@@ -168,19 +186,75 @@ body {
     transform: translate(0, 0);
   }
   100% {
-    transform: translate(24px, 0);
+    transform: translate(20px, 0);
   }
 }
 
-/* Glass effect */
+/* Glass effect - reduced blur for better performance */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.dark .glass {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* Shadow glow - reduced for better performance */
+.shadow-glow {
+  box-shadow: 0 0 15px rgba(var(--accent-color), 0.3);
+}
+
+/* New loading animation for page transitions */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Utility classes for common patterns */
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-accent-light;
+}
+
+.button-hover {
+  @apply transition-all duration-200 hover:shadow-glow;
+}
+
+.content-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Page section styling */
+.page-section {
+  @apply py-12 md:py-16 lg:py-20;
+}
+
+/* Responsive text sizing */
+.text-responsive {
+  @apply text-sm sm:text-base;
+}
+
+.heading-responsive {
+  @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl;
+}
+
+/* Focus styles that maintain the black and white aesthetic */
+*:focus-visible {
+  outline: 2px solid rgba(var(--accent-color), 0.5);
+  outline-offset: 2px;
 }
