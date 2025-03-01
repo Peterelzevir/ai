@@ -1,12 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { FiUser } from 'react-icons/fi';
+import { FiUser, FiBookmark, FiCopy } from 'react-icons/fi';
+import MessageParser from '@/components/ui/MessageParser';
+import MessageReactions from './MessageReactions';
+import EmojiPicker from '@/components/ui/EmojiPicker';
 
-export default function ChatHistory({ messages, isProcessing, isMobile = false }) {
+export default function ChatHistory({ messages, isProcessing, isMobile = false, searchQuery = '' }) {
   const lastMessageRef = useRef(null);
+  const [bookmarkedMessages, setBookmarkedMessages] = useState({});
 
   // Scroll to the bottom when new messages are added
   useEffect(() => {
@@ -19,12 +23,40 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false }
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+  
+  // Toggle bookmark for a message
+  const toggleBookmark = (messageId) => {
+    setBookmarkedMessages(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId]
+    }));
+  };
+  
+  // Copy message content
+  const copyMessage = (content) => {
+    navigator.clipboard.writeText(content);
+    // Could add a toast notification here
+  };
+  
+  // Highlight search matches
+  const highlightText = (text, query) => {
+    if (!query || !text) return text;
+    
+    // Simple highlighting - in a real app you might want to use a proper lib
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === query.toLowerCase() 
+        ? <mark key={i} className="bg-yellow-300/30 text-white px-0.5 rounded">{part}</mark> 
+        : part
+    );
+  };
 
   return (
     <div className="space-y-6">
       {messages.map((message, index) => {
         const isLastMessage = index === messages.length - 1;
         const isUser = message.role === 'user';
+        const isBookmarked = bookmarkedMessages[message.id];
         
         return (
           <div
@@ -58,17 +90,42 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false }
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="flex-1 max-w-[85%]"
+                className="flex-1 max-w-[85%] relative group"
               >
-                {/* Name */}
-                <div className="text-xs font-medium mb-1 text-primary-300">
-                  {isUser ? 'You' : 'AI Peter'}
+                {/* Name & actions */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs font-medium text-primary-300">
+                    {isUser ? 'You' : 'AI Peter'}
+                  </div>
+                  
+                  {/* Message actions */}
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => copyMessage(message.content)}
+                      className="p-1 text-primary-400 hover:text-primary-200 rounded"
+                      title="Copy message"
+                    >
+                      <FiCopy size={14} />
+                    </button>
+                    <button
+                      onClick={() => toggleBookmark(message.id)}
+                      className={`p-1 rounded ${isBookmarked ? 'text-yellow-400' : 'text-primary-400 hover:text-primary-200'}`}
+                      title={isBookmarked ? "Remove bookmark" : "Bookmark message"}
+                    >
+                      <FiBookmark size={14} />
+                    </button>
+                  </div>
                 </div>
                 
-                {/* Message bubble */}
+                {/* Bookmark indicator */}
+                {isBookmarked && (
+                  <div className="absolute -left-1 -top-1 w-2 h-2 bg-yellow-400 rounded-full"></div>
+                )}
+                
+                {/* Message bubble with enhanced parser for code */}
                 <div 
                   className={`
-                    rounded-lg whitespace-pre-wrap text-sm leading-6
+                    rounded-lg text-sm leading-6
                     ${isUser 
                       ? 'bg-accent/10 text-primary-50' 
                       : message.isError
@@ -78,12 +135,20 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false }
                     px-4 py-3
                   `}
                 >
-                  {message.content}
+                  <MessageParser content={message.content} />
                 </div>
                 
-                {/* Bottom info bar with timestamp */}
-                <div className="flex items-center mt-1 text-[10px] text-primary-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span>{formatDate(message.timestamp)}</span>
+                {/* Bottom info bar with timestamp and reactions */}
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-[10px] text-primary-400">
+                    {formatDate(message.timestamp)}
+                  </div>
+                  
+                  {/* Message reactions */}
+                  <MessageReactions 
+                    messageId={message.id} 
+                    initialReactions={message.reactions || {}} 
+                  />
                 </div>
               </motion.div>
             </div>
