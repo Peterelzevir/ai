@@ -1,17 +1,8 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useInView } from 'react-intersection-observer';
-import Image from 'next/image';
 
-export default function Hero() {
-  const [ref, inView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1,
-  });
-
+const ImprovedHero = () => {
   const [typeText, setTypeText] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -35,7 +26,7 @@ export default function Hero() {
   
   // Typing effect after loading
   useEffect(() => {
-    if (inView && isLoaded) {
+    if (isLoaded) {
       let i = 0;
       const typingInterval = setInterval(() => {
         if (i < fullText.length) {
@@ -48,7 +39,7 @@ export default function Hero() {
       
       return () => clearInterval(typingInterval);
     }
-  }, [inView, isLoaded]);
+  }, [isLoaded]);
 
   // Loading Screen
   if (!isLoaded) {
@@ -61,13 +52,7 @@ export default function Hero() {
             transition={{ duration: 0.5 }}
             className="w-20 h-20 mx-auto mb-6 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center"
           >
-            <Image 
-              src="/images/logo.svg" 
-              alt="AI Peter Logo"
-              width={50}
-              height={50}
-              className="animate-pulse"
-            />
+            <img src="/images/logo.svg" alt="AI Peter Logo" width={50} height={50} className="animate-pulse" />
           </motion.div>
           
           <motion.div
@@ -106,13 +91,13 @@ export default function Hero() {
   }
 
   return (
-    <section className="min-h-screen flex items-center justify-center relative overflow-hidden bg-primary-900" ref={ref}>
-      {/* Background - simplified for better performance */}
-      <div className="absolute inset-0 overflow-hidden">
+    <section className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-primary-900">
+      {/* Optimized background elements with will-change for better performance */}
+      <div className="absolute inset-0 overflow-hidden will-change-transform">
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
         
         <motion.div 
-          className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-accent/5 blur-3xl"
+          className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-accent/5 blur-3xl will-change-transform"
           animate={{ 
             x: [0, 30, 0], 
             y: [0, -30, 0],
@@ -124,7 +109,7 @@ export default function Hero() {
           }}
         />
         <motion.div 
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-accent/5 blur-3xl"
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-accent/5 blur-3xl will-change-transform"
           animate={{ 
             x: [0, -20, 0], 
             y: [0, 20, 0],
@@ -145,13 +130,7 @@ export default function Hero() {
           transition={{ duration: 0.8 }}
         >
           <motion.div className="mb-4">
-            <Image 
-              src="/images/logo.svg" 
-              alt="AI Peter Logo"
-              width={100}
-              height={100}
-              className="mx-auto"
-            />
+            <img src="/images/logo.svg" alt="AI Peter Logo" width={100} height={100} className="mx-auto" />
           </motion.div>
           
           <motion.h1 
@@ -196,73 +175,102 @@ export default function Hero() {
           </motion.div>
         </motion.div>
 
-        {/* AI Assistant Preview */}
+        {/* Improved AI Assistant Preview */}
         <motion.div
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.5 }}
           className="mt-16 relative max-w-2xl mx-auto"
         >
-          <div className="relative w-full h-64 sm:h-80 rounded-lg overflow-hidden border border-primary-600/50 shadow-lg bg-primary-800/70 backdrop-blur-sm">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="px-6 py-3 rounded-lg max-w-md w-full">
-                <div className="flex items-center mb-4">
-                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-3 overflow-hidden">
-                    <Image 
-                      src="/images/avatar.svg" 
-                      alt="AI Peter" 
-                      width={32} 
-                      height={32} 
-                      className="w-full h-full"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-primary-50 font-medium">AI Peter</div>
-                    <div className="text-xs text-primary-300">Online now</div>
-                  </div>
+          <div className="relative w-full h-auto md:h-96 rounded-lg overflow-hidden border border-primary-600/50 shadow-lg bg-primary-800/70 backdrop-blur-sm p-4">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-3 overflow-hidden">
+                  <img src="/images/avatar.svg" alt="AI Peter" width={40} height={40} className="w-full h-full" />
                 </div>
-                <div className="text-primary-50 p-3 bg-primary-700/70 rounded-lg">
-                  Hello there! I'm Peter, your AI assistant. How can I help you today?
+                <div>
+                  <div className="text-primary-50 font-medium">AI Peter</div>
+                  <div className="text-xs text-primary-300">Online now</div>
                 </div>
-                
-                <div className="mt-3 flex justify-end">
-                  <div className="flex items-center bg-accent/10 text-primary-50 p-3 rounded-lg ml-auto max-w-[70%]">
-                    Can you help me with some information?
+              </div>
+              
+              <div className="flex-grow overflow-y-auto custom-scrollbar space-y-4">
+                <div className="flex items-start">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-3 overflow-hidden flex-shrink-0">
+                    <img src="/images/avatar.svg" alt="AI Peter" width={32} height={32} className="w-full h-full" />
+                  </div>
+                  <div className="bg-primary-700/70 p-4 rounded-lg text-primary-50 max-w-[80%]">
+                    Hello there! I'm Peter, your AI assistant. How can I help you today?
                   </div>
                 </div>
                 
-                <div className="mt-3 flex items-start">
-                  <div className="w-8 h-8 rounded-full bg-accent flex-shrink-0 flex items-center justify-center text-white font-medium mr-3 overflow-hidden">
-                    <Image 
-                      src="/images/avatar.svg" 
-                      alt="AI Peter" 
-                      width={32} 
-                      height={32} 
-                      className="w-full h-full"
-                    />
+                <div className="flex justify-end">
+                  <div className="bg-accent/10 text-primary-50 p-4 rounded-lg max-w-[80%]">
+                    Can you tell me more about your features?
                   </div>
-                  <div className="typing-animation bg-primary-700/70 p-3 rounded-lg inline-block">
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-3 overflow-hidden flex-shrink-0">
+                    <img src="/images/avatar.svg" alt="AI Peter" width={32} height={32} className="w-full h-full" />
+                  </div>
+                  <div className="bg-primary-700/70 p-4 rounded-lg text-primary-50 max-w-[80%]">
+                    <p>Of course! I'm designed with several cutting-edge features:</p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li>Natural language conversations with context awareness</li>
+                      <li>Voice interaction - you can speak to me and I'll respond</li>
+                      <li>Shareable conversations with friends</li>
+                      <li>Real-time responses with minimal latency</li>
+                      <li>Beautiful dark & light themes</li>
+                    </ul>
+                    <p className="mt-2">Would you like me to explain any of these in more detail?</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-3 overflow-hidden flex-shrink-0">
+                    <img src="/images/avatar.svg" alt="AI Peter" width={32} height={32} className="w-full h-full" />
+                  </div>
+                  <div className="typing-animation bg-primary-700/70 p-4 rounded-lg">
                     <span></span>
                     <span></span>
                     <span></span>
                   </div>
                 </div>
               </div>
+              
+              <div className="mt-4 flex items-center border-t border-primary-700 pt-4">
+                <input 
+                  type="text" 
+                  placeholder="Type your message..."
+                  className="flex-grow bg-primary-700 border border-primary-600 rounded-lg p-3 text-primary-50 text-sm focus:outline-none focus:border-accent"
+                />
+                <button className="ml-2 bg-accent rounded-full p-3 text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
           
-          {/* Scroll indicator */}
+          {/* Improved scroll indicator */}
           <motion.div
-            animate={{ y: [0, -5, 0] }}
-            transition={{ 
-              duration: 3, 
-              repeat: Infinity,
-              repeatType: "reverse" 
+            animate={{ 
+              y: [0, 8, 0],
+              opacity: [0.5, 1, 0.5]
             }}
-            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-10 h-10 text-primary-300"
+            transition={{ 
+              duration: 2, 
+              repeat: Infinity,
+              repeatType: "loop" 
+            }}
+            className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-primary-300"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
+              width="40"
+              height="40"
               viewBox="0 0 24 24" 
               fill="none" 
               stroke="currentColor" 
@@ -276,6 +284,70 @@ export default function Hero() {
           </motion.div>
         </motion.div>
       </div>
+      
+      {/* Custom CSS for better scrolling performance */}
+      <style jsx global>{`
+        html {
+          scroll-behavior: smooth;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Typing animation */
+        .typing-animation {
+          display: flex;
+          align-items: center;
+        }
+        
+        .typing-animation span {
+          height: 8px;
+          width: 8px;
+          margin: 0 2px;
+          background-color: rgba(255, 255, 255, 0.7);
+          border-radius: 50%;
+          display: inline-block;
+          animation: bounce 1.5s infinite ease-in-out;
+        }
+        
+        .typing-animation span:nth-child(1) {
+          animation-delay: -0.3s;
+        }
+        
+        .typing-animation span:nth-child(2) {
+          animation-delay: -0.15s;
+        }
+        
+        @keyframes bounce {
+          0%, 80%, 100% {
+            transform: scale(0);
+            opacity: 0.7;
+          }
+          40% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        
+        /* Will-change for hardware acceleration */
+        .will-change-transform {
+          will-change: transform;
+        }
+      `}</style>
     </section>
   );
-}
+};
