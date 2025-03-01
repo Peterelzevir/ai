@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMic, FiMicOff, FiLoader, FiAlertTriangle, FiVolume2 } from 'react-icons/fi';
+import { FiMic, FiMicOff, FiLoader, FiAlertTriangle, FiVolume2, FiVolumeX } from 'react-icons/fi';
 import { useChatContext } from '@/context/ChatContext';
 import { startSpeechRecognition, speakText } from '@/lib/voice';
 
@@ -20,6 +20,7 @@ export default function VoiceInput() {
   const recognitionRef = useRef(null);
   const recordingTimerRef = useRef(null);
   const speakingAnimationRef = useRef(null);
+  const speechControllerRef = useRef(null);
   
   // Check if browser supports speech recognition
   useEffect(() => {
@@ -30,11 +31,37 @@ export default function VoiceInput() {
     }
   }, []);
 
+  // Handle page close/unload - stop all speech
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      stopSpeech();
+      return null; // No message needed
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Also handle visibility change (user switches tabs)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        stopSpeech();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopSpeech();
+    };
+  }, []);
+
   // Clean up resources on unmount
   useEffect(() => {
     return () => {
       stopRecordingTimer();
       stopSpeakingAnimation();
+      stopSpeech();
       
       if (recognitionRef.current && recognitionRef.current.stop) {
         try {
@@ -43,13 +70,24 @@ export default function VoiceInput() {
           console.error('Error stopping speech recognition:', err);
         }
       }
-      
-      // Cancel any ongoing speech
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
     };
   }, []);
+
+  // Function to stop speech
+  const stopSpeech = () => {
+    // Cancel any ongoing speech
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    
+    // Use the controller if available
+    if (speechControllerRef.current && speechControllerRef.current.cancel) {
+      speechControllerRef.current.cancel();
+    }
+    
+    setIsSpeaking(false);
+    stopSpeakingAnimation();
+  };
 
   // Update recording timer
   const startRecordingTimer = () => {
@@ -58,7 +96,7 @@ export default function VoiceInput() {
     
     recordingTimerRef.current = setInterval(() => {
       setRecordingTime(prev => {
-        // Auto stop at 10 seconds if still recording
+        // Auto stop at 30 seconds if still recording
         if (prev >= 30) {
           stopVoiceRecording();
           return 0;
@@ -97,6 +135,12 @@ export default function VoiceInput() {
   // Start voice recording
   const handleStartListening = () => {
     if (isProcessing || isSpeaking || !isSupported) return;
+    
+    // If bot is currently speaking, stop it first
+    if (isSpeaking) {
+      stopSpeech();
+      return;
+    }
     
     setError(null);
     setIsListening(true);
@@ -192,7 +236,8 @@ export default function VoiceInput() {
         startSpeakingAnimation();
         
         try {
-          await speakText(response.content);
+          // Store the controller for later cancellation
+          speechControllerRef.current = await speakText(response.content);
           setIsSpeaking(false);
           stopSpeakingAnimation();
         } catch (error) {
@@ -261,7 +306,7 @@ export default function VoiceInput() {
           {isListening 
             ? `🎤 Listening... (${recordingTime.toFixed(1)}s)`
             : isSpeaking
-              ? '🔊 Speaking...'
+              ? '🔊 Speaking... (tap to stop)'
               : isProcessing
                 ? '⏳ Processing...'
                 : '👉 Tap the microphone to speak'}
@@ -283,33 +328,42 @@ export default function VoiceInput() {
             />
           )}
           
+          {/* Speaking indicator - now clickable to stop speech */}
           {isSpeaking && (
-            <motion.div
+            <motion.button
+              onClick={stopSpeech}
               style={{ 
-                height: `${(speakingVolume * 16) + 4}px`,
+                height: `${(speakingVolume * 16) + 16}px`,
                 opacity: 0.8 + (speakingVolume * 0.2)
               }}
-              className="w-2 rounded-full bg-accent transition-all duration-100"
-            />
+              className="min-w-6 px-2 rounded-full bg-accent transition-all duration-100 flex items-center justify-center hover:bg-red-500"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              title="Click to stop speaking"
+            >
+              <FiVolumeX size={14} className="text-white" />
+            </motion.button>
           )}
           
           {/* Voice button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={isListening ? stopVoiceRecording : handleStartListening}
-            disabled={isProcessing || isSpeaking}
+            onClick={isListening ? stopVoiceRecording : isSpeaking ? stopSpeech : handleStartListening}
+            disabled={isProcessing && !isSpeaking}
             className={`
               w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
               ${isListening 
                 ? 'bg-red-500 text-white' 
-                : isProcessing || isSpeaking
-                  ? 'bg-primary-600 text-primary-300 cursor-not-allowed'
-                  : 'bg-accent text-white hover:bg-accent-light'
+                : isSpeaking
+                  ? 'bg-accent text-white hover:bg-red-500'
+                  : isProcessing
+                    ? 'bg-primary-600 text-primary-300 cursor-not-allowed'
+                    : 'bg-accent text-white hover:bg-accent-light'
               }
               ${isListening ? 'shadow-glow' : ''}
             `}
           >
-            {isProcessing ? (
+            {isProcessing && !isSpeaking ? (
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
@@ -317,7 +371,7 @@ export default function VoiceInput() {
                 <FiLoader size={24} />
               </motion.div>
             ) : isSpeaking ? (
-              <FiVolume2 size={24} />
+              <FiVolumeX size={24} />
             ) : isListening ? (
               <FiMicOff size={24} />
             ) : (
@@ -332,7 +386,7 @@ export default function VoiceInput() {
         <div className="w-full bg-primary-700/50 h-1 rounded-full overflow-hidden mt-1">
           <motion.div 
             className="h-full bg-red-500"
-            style={{ width: `${(recordingTime / 10) * 100}%` }}
+            style={{ width: `${(recordingTime / 30) * 100}%` }}
           />
         </div>
       )}
