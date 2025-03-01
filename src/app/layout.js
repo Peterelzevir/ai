@@ -18,20 +18,19 @@ const robotoMono = Roboto_Mono({
 export const metadata = {
   title: 'AI Peter - Super Modern AI Chatbot',
   description: 'Experience the future of AI conversation with Peter, a super modern chatbot with text and voice capabilities.',
-  icons: {
-    icon: '/favicon.ico',
-  },
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className={`${inter.variable} ${robotoMono.variable} font-sans min-h-screen flex flex-col dark:bg-primary bg-secondary`}>
+      <body className={`${inter.variable} ${robotoMono.variable} font-sans min-h-screen flex flex-col bg-primary-900 text-primary-50`}>
         <Navbar />
-        <main className="flex-grow">
+        <main className="flex-grow mt-16">
           {children}
         </main>
         <Footer />
