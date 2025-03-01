@@ -2,10 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiRefreshCw, FiShare2, FiMic, FiMessageSquare, FiMenu, FiX, FiMaximize, FiMinimize } from 'react-icons/fi';
+import { 
+  FiRefreshCw, FiShare2, FiMic, FiMessageSquare, FiMenu, 
+  FiX, FiMaximize, FiMinimize, FiDownload, FiSettings, 
+  FiSearch, FiInfo
+} from 'react-icons/fi';
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
 import VoiceInput from './VoiceInput';
+import ChatSidebar from './ChatSidebar';
+import ChatExportModal from './ChatExportModal';
+import ThemeSwitch from '@/components/ui/ThemeSwitch';
 import { useChatContext } from '@/context/ChatContext';
 import { saveConversationForSharing } from '@/lib/api';
 import Image from 'next/image';
@@ -21,12 +28,17 @@ export default function ChatInterface() {
     generateShareableLink,
   } = useChatContext();
   
-  // States
+  // UI States
   const [shareUrl, setShareUrl] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showSearchBox, setShowSearchBox] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
+  
   const chatContainerRef = useRef(null);
 
   // Check if we're on mobile & listen for resize
@@ -89,6 +101,18 @@ export default function ChatInterface() {
     }
   };
 
+  // Toggle sidebar
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar);
+  };
+  
+  // Filter messages based on search
+  const filteredMessages = searchQuery.trim() 
+    ? messages.filter(msg => 
+        msg.content.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
+
   // Chat container classes
   const containerClasses = `
     ${isFullScreen ? 'fixed inset-0 z-50' : 'relative'} 
@@ -97,182 +121,325 @@ export default function ChatInterface() {
   `;
 
   return (
-    <div className={containerClasses}>
-      {/* Header with brand */}
-      <div className="flex items-center justify-between p-3 md:p-4 border-b border-primary-600 bg-primary-900">
-        <div className="flex items-center">
-          {/* Mobile Toggle Button */}
-          <button
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="md:hidden mr-3 text-primary-200 hover:text-primary-50"
-            aria-label="Toggle sidebar"
-          >
-            {showSidebar ? <FiX size={20} /> : <FiMenu size={20} />}
-          </button>
-          
+    <>
+      {/* Chat Sidebar */}
+      <ChatSidebar 
+        isOpen={showSidebar} 
+        toggleSidebar={toggleSidebar} 
+        isMobile={isMobile} 
+      />
+      
+      <div className={containerClasses}>
+        {/* Header with brand */}
+        <div className="flex items-center justify-between p-3 md:p-4 border-b border-primary-600 bg-primary-900">
           <div className="flex items-center">
-            <motion.div
-              initial={{ rotate: -5 }}
-              animate={{ rotate: 5 }}
-              transition={{ repeat: Infinity, repeatType: 'reverse', duration: 2 }}
-              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-2 md:mr-3 flex-shrink-0 overflow-hidden"
+            {/* Sidebar Toggle Button */}
+            <button
+              onClick={toggleSidebar}
+              className="mr-3 text-primary-200 hover:text-primary-50 p-2 rounded-md hover:bg-primary-700/50"
+              aria-label={showSidebar ? "Close sidebar" : "Open sidebar"}
             >
-              <Image 
-                src="/images/avatar.svg" 
-                alt="AI Peter" 
-                width={36} 
-                height={36} 
-                className="w-full h-full"
-              />
-            </motion.div>
-            <div className="overflow-hidden">
-              <div className="text-primary-50 font-medium text-sm md:text-base truncate">AI Peter</div>
-              <div className="text-xs text-primary-300 flex items-center">
-                <span className="w-2 h-2 rounded-full bg-green-400 mr-1"></span> Online
+              {showSidebar ? <FiX size={18} /> : <FiMenu size={18} />}
+            </button>
+            
+            <div className="flex items-center">
+              <motion.div
+                initial={{ rotate: -5 }}
+                animate={{ rotate: 5 }}
+                transition={{ repeat: Infinity, repeatType: 'reverse', duration: 2 }}
+                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-accent flex items-center justify-center text-white font-medium mr-2 md:mr-3 flex-shrink-0 overflow-hidden"
+              >
+                <Image 
+                  src="/images/avatar.svg" 
+                  alt="AI Peter" 
+                  width={36} 
+                  height={36} 
+                  className="w-full h-full"
+                />
+              </motion.div>
+              <div className="overflow-hidden">
+                <div className="text-primary-50 font-medium text-sm md:text-base truncate">AI Peter</div>
+                <div className="text-xs text-primary-300 flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-green-400 mr-1"></span> Online
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Controls */}
+          <div className="flex items-center gap-1">
+            {/* Search Toggle */}
+            <button
+              onClick={() => setShowSearchBox(!showSearchBox)}
+              className={`p-2 rounded-md ${
+                showSearchBox ? 'bg-accent text-white' : 'text-primary-200 hover:bg-primary-700/50 hover:text-primary-50'
+              } transition-colors hidden sm:block`}
+              aria-label="Search messages"
+            >
+              <FiSearch size={18} />
+            </button>
+            
+            {/* Theme Switch */}
+            <div className="hidden sm:block">
+              <ThemeSwitch />
+            </div>
+            
+            {/* Voice/Text Toggle */}
+            <button
+              onClick={toggleVoiceMode}
+              className={`p-2 rounded-md ${
+                isVoiceMode ? 'bg-accent text-white' : 'text-primary-200 hover:bg-primary-700/50 hover:text-primary-50'
+              } transition-colors`}
+              title={isVoiceMode ? "Switch to Text Mode" : "Switch to Voice Mode"}
+            >
+              {isVoiceMode ? <FiMessageSquare size={18} /> : <FiMic size={18} />}
+            </button>
+            
+            {/* More Options Dropdown */}
+            <div className="relative group">
+              <button
+                className="p-2 rounded-md text-primary-200 hover:bg-primary-700/50 hover:text-primary-50 transition-colors"
+                aria-label="More options"
+              >
+                <FiSettings size={18} />
+              </button>
+              
+              <div className="absolute right-0 top-full mt-1 bg-primary-800 border border-primary-700 rounded-md shadow-lg z-10 w-48 overflow-hidden opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all">
+                <div className="py-1">
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center w-full px-4 py-2 text-sm text-primary-200 hover:bg-primary-700 hover:text-primary-50"
+                  >
+                    <FiShare2 size={16} className="mr-2" />
+                    Share Conversation
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowExportModal(true)}
+                    className="flex items-center w-full px-4 py-2 text-sm text-primary-200 hover:bg-primary-700 hover:text-primary-50"
+                  >
+                    <FiDownload size={16} className="mr-2" />
+                    Export/Import Chat
+                  </button>
+                  
+                  <button
+                    onClick={clearConversation}
+                    className="flex items-center w-full px-4 py-2 text-sm text-primary-200 hover:bg-primary-700 hover:text-primary-50"
+                  >
+                    <FiRefreshCw size={16} className="mr-2" />
+                    New Conversation
+                  </button>
+                  
+                  <button
+                    onClick={toggleFullScreen}
+                    className="flex items-center w-full px-4 py-2 text-sm text-primary-200 hover:bg-primary-700 hover:text-primary-50 hidden md:flex"
+                  >
+                    {isFullScreen ? (
+                      <>
+                        <FiMinimize size={16} className="mr-2" />
+                        Exit Full Screen
+                      </>
+                    ) : (
+                      <>
+                        <FiMaximize size={16} className="mr-2" />
+                        Full Screen
+                      </>
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowInfoPanel(!showInfoPanel)}
+                    className="flex items-center w-full px-4 py-2 text-sm text-primary-200 hover:bg-primary-700 hover:text-primary-50"
+                  >
+                    <FiInfo size={16} className="mr-2" />
+                    About AI Peter
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Controls */}
-        <div className="flex items-center gap-1 md:gap-2">
-          <button
-            onClick={toggleVoiceMode}
-            className={`p-2 rounded-md ${
-              isVoiceMode ? 'bg-accent text-white' : 'text-primary-200 hover:bg-primary-700 hover:text-primary-50'
-            } transition-colors`}
-            title={isVoiceMode ? "Switch to Text Mode" : "Switch to Voice Mode"}
-          >
-            {isVoiceMode ? <FiMessageSquare size={18} /> : <FiMic size={18} />}
-          </button>
-          
-          <button
-            onClick={handleShare}
-            className="p-2 rounded-md text-primary-200 hover:bg-primary-700 hover:text-primary-50 transition-colors"
-            title="Share Conversation"
-            disabled={messages.length < 2}
-          >
-            <FiShare2 size={18} />
-          </button>
-          
-          <button
-            onClick={clearConversation}
-            className="p-2 rounded-md text-primary-200 hover:bg-primary-700 hover:text-primary-50 transition-colors"
-            title="New Conversation"
-          >
-            <FiRefreshCw size={18} />
-          </button>
-          
-          <button
-            onClick={toggleFullScreen}
-            className="p-2 rounded-md text-primary-200 hover:bg-primary-700 hover:text-primary-50 transition-colors hidden md:block"
-            title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
-          >
-            {isFullScreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
-          </button>
-        </div>
-      </div>
-      
-      {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar (mobile only) */}
+        {/* Search box */}
         <AnimatePresence>
-          {showSidebar && (
+          {showSearchBox && (
             <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: '75%', opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              className="md:hidden absolute inset-y-0 left-0 z-10 bg-primary-900 border-r border-primary-600 overflow-y-auto"
-              style={{ top: '60px' }}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="border-b border-primary-600 bg-primary-800 overflow-hidden"
             >
-              <div className="p-4">
-                <h2 className="text-lg font-medium text-primary-50 mb-4">Conversations</h2>
-                <button
-                  onClick={() => {
-                    clearConversation();
-                    setShowSidebar(false);
-                  }}
-                  className="w-full py-2 px-3 rounded bg-accent text-white text-sm mb-4"
-                >
-                  New Chat
-                </button>
-                
-                <div className="space-y-2 text-primary-200">
-                  <div className="p-3 rounded-md hover:bg-primary-700 cursor-pointer">
-                    <div className="text-sm font-medium">Current Chat</div>
-                    <div className="text-xs text-primary-300 truncate mt-1">
-                      {messages.length > 1 
-                        ? messages[1]?.content?.substring(0, 40) + "..." 
-                        : "Start typing to chat with AI Peter..."}
-                    </div>
-                  </div>
-                </div>
+              <div className="p-3 flex items-center">
+                <FiSearch size={18} className="text-primary-400 mr-2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search in conversation..."
+                  className="flex-grow bg-transparent border-none outline-none text-primary-50 placeholder-primary-400 text-sm"
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-primary-400 hover:text-primary-200"
+                  >
+                    <FiX size={16} />
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
         
-        {/* Chat history */}
-        <div
-          ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-primary-700"
-        >
-          {messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-md px-4 py-8 rounded-lg bg-primary-800/50">
-                <Image
-                  src="/images/avatar.svg"
-                  alt="AI Peter"
-                  width={64}
-                  height={64}
-                  className="mx-auto mb-6 opacity-90"
-                />
-                <h3 className="text-xl text-primary-50 mb-3">Welcome to AI Peter</h3>
-                <p className="mb-6 text-primary-200">
-                  Start by sending a message and I'll respond in real-time with insightful answers.
-                </p>
-                
-                <div className="flex flex-col gap-3 text-sm text-primary-300">
-                  <div className="p-3 rounded-md bg-primary-800/70 hover:bg-primary-800 cursor-pointer text-left">
-                    "What can you help me with today?"
+        {/* Main content area */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Info Panel */}
+          <AnimatePresence>
+            {showInfoPanel && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: '300px', opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="border-l border-primary-600 bg-primary-800 overflow-y-auto h-full"
+              >
+                <div className="p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-primary-50">About AI Peter</h3>
+                    <button 
+                      onClick={() => setShowInfoPanel(false)}
+                      className="text-primary-400 hover:text-primary-200 p-1"
+                    >
+                      <FiX size={18} />
+                    </button>
                   </div>
-                  <div className="p-3 rounded-md bg-primary-800/70 hover:bg-primary-800 cursor-pointer text-left">
-                    "Tell me a story about artificial intelligence."
+                  
+                  <div className="mb-4 text-center">
+                    <div className="mx-auto w-16 h-16 bg-accent rounded-full mb-2 overflow-hidden">
+                      <Image 
+                        src="/images/avatar.svg" 
+                        alt="AI Peter"
+                        width={64}
+                        height={64}
+                        className="w-full h-full"
+                      />
+                    </div>
+                    <h4 className="text-primary-50 font-medium">AI Peter</h4>
+                    <p className="text-primary-300 text-sm">Super Modern AI Chatbot</p>
                   </div>
-                  <div className="p-3 rounded-md bg-primary-800/70 hover:bg-primary-800 cursor-pointer text-left">
-                    "What's the difference between machine learning and AI?"
+                  
+                  <div className="space-y-4 text-sm text-primary-300">
+                    <p>
+                      AI Peter is a state-of-the-art AI assistant designed to provide helpful, accurate responses in a modern, intuitive interface.
+                    </p>
+                    <div>
+                      <h5 className="text-primary-200 font-medium mb-1">Features:</h5>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>Text & Voice interactions</li>
+                        <li>Code syntax highlighting</li>
+                        <li>Conversation sharing</li>
+                        <li>Dark/Light mode</li>
+                        <li>Export/Import chats</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="text-primary-200 font-medium mb-1">Tips:</h5>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>Use voice mode for hands-free interaction</li>
+                        <li>Share conversations with unique links</li>
+                        <li>Export chats for safekeeping</li>
+                        <li>Write code with triple backticks for syntax highlighting</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* Chat history */}
+          <div
+            ref={chatContainerRef}
+            className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-primary-700"
+          >
+            {filteredMessages.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                {searchQuery ? (
+                  <div className="text-center px-4 py-8 rounded-lg bg-primary-800/50">
+                    <FiSearch size={36} className="mx-auto mb-4 text-primary-400" />
+                    <p className="text-primary-200 mb-2">No messages match your search</p>
+                    <p className="text-primary-400 text-sm">Try different keywords</p>
+                  </div>
+                ) : (
+                  <div className="text-center max-w-md px-4 py-8 rounded-lg bg-primary-800/50">
+                    <Image
+                      src="/images/avatar.svg"
+                      alt="AI Peter"
+                      width={64}
+                      height={64}
+                      className="mx-auto mb-6 opacity-90"
+                    />
+                    <h3 className="text-xl text-primary-50 mb-3">Welcome to AI Peter</h3>
+                    <p className="mb-6 text-primary-200">
+                      Start by sending a message and I'll respond in real-time with insightful answers.
+                    </p>
+                    
+                    <div className="flex flex-col gap-3 text-sm text-primary-300">
+                      <div className="p-3 rounded-md bg-primary-800/70 hover:bg-primary-800 cursor-pointer text-left">
+                        "What can you help me with today?"
+                      </div>
+                      <div className="p-3 rounded-md bg-primary-800/70 hover:bg-primary-800 cursor-pointer text-left">
+                        "Tell me a story about artificial intelligence."
+                      </div>
+                      <div className="p-3 rounded-md bg-primary-800/70 hover:bg-primary-800 cursor-pointer text-left">
+                        "What's the difference between machine learning and AI?"
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <ChatHistory 
+                messages={filteredMessages} 
+                isProcessing={isProcessing} 
+                isMobile={isMobile} 
+                searchQuery={searchQuery}
+              />
+            )}
+          </div>
+        </div>
+        
+        {/* Input Area */}
+        <div className="border-t border-primary-600 p-3 md:p-4 bg-primary-800">
+          {isVoiceMode ? (
+            <VoiceInput />
           ) : (
-            <ChatHistory messages={messages} isProcessing={isProcessing} isMobile={isMobile} />
+            <ChatInput />
           )}
         </div>
+        
+        {/* Share Toast Notification */}
+        <AnimatePresence>
+          {showShareToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-accent text-white rounded-md shadow-lg text-sm"
+            >
+              Conversation link copied to clipboard!
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       
-      {/* Input Area */}
-      <div className="border-t border-primary-600 p-3 md:p-4 bg-primary-800">
-        {isVoiceMode ? (
-          <VoiceInput />
-        ) : (
-          <ChatInput />
-        )}
-      </div>
-      
-      {/* Share Toast Notification */}
-      <AnimatePresence>
-        {showShareToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="absolute bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-accent text-white rounded-md shadow-lg text-sm"
-          >
-            Conversation link copied to clipboard!
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {/* Export/Import Modal */}
+      <ChatExportModal 
+        isOpen={showExportModal} 
+        onClose={() => setShowExportModal(false)} 
+      />
+    </>
   );
 }
