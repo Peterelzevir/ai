@@ -1,67 +1,52 @@
-// /app/api/auth/register/route.js
-import { NextResponse } from 'next/server';
-import { createUser, getUserByEmail } from '@/lib/db';
+export const dynamic = 'force-dynamic';
 
-export async function POST(request) {
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { verify } from 'jsonwebtoken';
+import { getUserByEmail } from '@/lib/db';
+
+// Secret key untuk JWT - gunakan .env di aplikasi nyata
+const JWT_SECRET = process.env.JWT_SECRET || 'ai-peter-secret-key-change-this';
+
+export async function GET() {
   try {
-    const body = await request.json();
-    const { name, email, password } = body;
+    const cookieStore = cookies();
+    const token = cookieStore.get('auth-token')?.value;
     
-    // Validasi data
-    if (!name || !email || !password) {
+    if (!token) {
       return NextResponse.json(
-        { success: false, message: 'Semua kolom harus diisi' },
-        { status: 400 }
+        { success: false, message: 'Tidak terautentikasi' },
+        { status: 401 }
       );
     }
     
-    // Validasi email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Verifikasi token
+    const payload = verify(token, JWT_SECRET);
+    
+    // Dapatkan info user terbaru dari database
+    const user = await getUserByEmail(payload.email);
+    
+    if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Format email tidak valid' },
-        { status: 400 }
+        { success: false, message: 'User tidak ditemukan' },
+        { status: 404 }
       );
     }
     
-    // Validasi password length
-    if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, message: 'Password minimal 6 karakter' },
-        { status: 400 }
-      );
-    }
-    
-    // Cek apakah email sudah terdaftar
-    const existingUser = await getUserByEmail(email);
-    if (existingUser) {
-      return NextResponse.json(
-        { success: false, message: 'Email sudah terdaftar' },
-        { status: 400 }
-      );
-    }
-    
-    // Buat user baru
-    const user = await createUser({ name, email, password });
-    
-    // Berhasil, kembalikan respon sukses
-    return NextResponse.json(
-      { 
-        success: true, 
-        message: 'Pendaftaran berhasil',
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email
-        }
-      },
-      { status: 201 }
-    );
+    // Kembalikan info user
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Auth verification error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Terjadi kesalahan saat mendaftar' },
-      { status: 500 }
+      { success: false, message: 'Sesi tidak valid' },
+      { status: 401 }
     );
   }
 }
