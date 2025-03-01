@@ -3,14 +3,35 @@
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { FiUser, FiBookmark, FiCopy } from 'react-icons/fi';
+import { FiBookmark, FiCopy, FiSave } from 'react-icons/fi';
 import MessageParser from '@/components/ui/MessageParser';
 import MessageReactions from './MessageReactions';
 import EmojiPicker from '@/components/ui/EmojiPicker';
 
-export default function ChatHistory({ messages, isProcessing, isMobile = false, searchQuery = '' }) {
+export default function ChatHistory({ messages, isProcessing, isMobile = false, searchQuery = '', user }) {
   const lastMessageRef = useRef(null);
   const [bookmarkedMessages, setBookmarkedMessages] = useState({});
+  
+  // Load bookmarks from localStorage on component mount
+  useEffect(() => {
+    if (user) {
+      try {
+        const savedBookmarks = localStorage.getItem(`bookmarks_${user.id}`);
+        if (savedBookmarks) {
+          setBookmarkedMessages(JSON.parse(savedBookmarks));
+        }
+      } catch (error) {
+        console.error('Error loading bookmarks:', error);
+      }
+    }
+  }, [user]);
+
+  // Save bookmarks to localStorage whenever they change
+  useEffect(() => {
+    if (user && Object.keys(bookmarkedMessages).length > 0) {
+      localStorage.setItem(`bookmarks_${user.id}`, JSON.stringify(bookmarkedMessages));
+    }
+  }, [bookmarkedMessages, user]);
 
   // Scroll to the bottom when new messages are added
   useEffect(() => {
@@ -26,16 +47,83 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false, 
   
   // Toggle bookmark for a message
   const toggleBookmark = (messageId) => {
-    setBookmarkedMessages(prev => ({
-      ...prev,
-      [messageId]: !prev[messageId]
-    }));
+    setBookmarkedMessages(prev => {
+      const updated = {
+        ...prev,
+        [messageId]: !prev[messageId]
+      };
+      
+      // Remove property if false to keep object clean
+      if (!updated[messageId]) {
+        delete updated[messageId];
+      }
+      
+      return updated;
+    });
   };
   
   // Copy message content
   const copyMessage = (content) => {
     navigator.clipboard.writeText(content);
-    // Could add a toast notification here
+    
+    // Show toast notification
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-10 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-accent text-white rounded-md shadow-lg text-sm z-50';
+    toast.textContent = 'Message copied to clipboard!';
+    document.body.appendChild(toast);
+    
+    // Remove toast after 2 seconds
+    setTimeout(() => {
+      toast.remove();
+    }, 2000);
+  };
+  
+  // Save all bookmarked messages
+  const saveBookmarkedMessages = () => {
+    if (!user) return;
+    
+    const bookmarked = messages.filter(msg => bookmarkedMessages[msg.id]);
+    
+    if (bookmarked.length === 0) {
+      // Show toast notification
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-10 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded-md shadow-lg text-sm z-50';
+      toast.textContent = 'No bookmarked messages to save!';
+      document.body.appendChild(toast);
+      
+      // Remove toast after 2 seconds
+      setTimeout(() => {
+        toast.remove();
+      }, 2000);
+      return;
+    }
+    
+    // Format bookmarked messages
+    const content = bookmarked.map(msg => {
+      return `[${msg.role === 'user' ? 'You' : 'AI Peter'}]: ${msg.content}\n`;
+    }).join('\n');
+    
+    // Create a blob and download it
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bookmarked_messages_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Show toast notification
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-10 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-green-500 text-white rounded-md shadow-lg text-sm z-50';
+    toast.textContent = 'Bookmarked messages saved!';
+    document.body.appendChild(toast);
+    
+    // Remove toast after 2 seconds
+    setTimeout(() => {
+      toast.remove();
+    }, 2000);
   };
   
   // Highlight search matches
@@ -51,12 +139,36 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false, 
     );
   };
 
+  // Get number of bookmarked messages
+  const bookmarkedCount = Object.values(bookmarkedMessages).filter(Boolean).length;
+
   return (
     <div className="space-y-6">
+      {/* Bookmarks manager (only shown if there are bookmarks) */}
+      {bookmarkedCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between bg-primary-800/70 rounded-lg py-2 px-3 text-sm"
+        >
+          <div className="flex items-center text-primary-200">
+            <FiBookmark className="text-yellow-400 mr-2" size={16} />
+            <span>{bookmarkedCount} message{bookmarkedCount !== 1 ? 's' : ''} bookmarked</span>
+          </div>
+          <button
+            onClick={saveBookmarkedMessages}
+            className="flex items-center text-accent hover:text-accent-light"
+          >
+            <FiSave size={14} className="mr-1" />
+            <span>Save</span>
+          </button>
+        </motion.div>
+      )}
+      
       {messages.map((message, index) => {
         const isLastMessage = index === messages.length - 1;
         const isUser = message.role === 'user';
-        const isBookmarked = bookmarkedMessages[message.id];
+        const isBookmarked = bookmarkedMessages[message.id] || false;
         
         return (
           <div
@@ -69,8 +181,8 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false, 
               {/* Avatar */}
               <div className={`flex-shrink-0 ${isUser ? 'ml-2' : 'mr-2'}`}>
                 {isUser ? (
-                  <div className="w-7 h-7 rounded-full bg-primary-600 flex items-center justify-center text-primary-50">
-                    <FiUser size={14} />
+                  <div className="w-7 h-7 rounded-full bg-accent/80 flex items-center justify-center text-white text-xs font-medium">
+                    {user ? user.name.charAt(0).toUpperCase() : 'U'}
                   </div>
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-white overflow-hidden">
@@ -95,7 +207,7 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false, 
                 {/* Name & actions */}
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-xs font-medium text-primary-300">
-                    {isUser ? 'You' : 'AI Peter'}
+                    {isUser ? (user ? user.name : 'You') : 'AI Peter'}
                   </div>
                   
                   {/* Message actions */}
@@ -135,7 +247,9 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false, 
                     px-4 py-3
                   `}
                 >
-                  <MessageParser content={message.content} />
+                  <MessageParser content={
+                    searchQuery ? highlightText(message.content, searchQuery) : message.content
+                  } />
                 </div>
                 
                 {/* Bottom info bar with timestamp and reactions */}
