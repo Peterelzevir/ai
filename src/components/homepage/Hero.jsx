@@ -170,7 +170,7 @@ export default function Hero() {
           </motion.div>
 
           <motion.div 
-            className="flex flex-col sm:flex-row justify-center gap-4 mt-10"
+            className="flex flex-col sm:flex-row justify-center gap-3 mt-10"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
@@ -184,6 +184,18 @@ export default function Hero() {
                 Start Chatting Now
               </motion.button>
             </Link>
+            
+            {/* Tombol Daftar baru */}
+            <Link href="/register">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="px-8 py-3 bg-primary-700/90 border border-accent/30 text-primary-50 rounded-lg font-medium hover:bg-primary-700 hover:border-accent/50 transition-all duration-300 text-lg"
+              >
+                Daftar
+              </motion.button>
+            </Link>
+            
             <Link href="#features">
               <motion.button
                 whileHover={{ scale: 1.03 }}
@@ -193,6 +205,16 @@ export default function Hero() {
                 Discover Features
               </motion.button>
             </Link>
+          </motion.div>
+          
+          {/* Link untuk login */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mt-4 text-primary-300 text-sm"
+          >
+            Sudah punya akun? <Link href="/login" className="text-accent hover:text-accent-light hover:underline">Login di sini</Link>
           </motion.div>
         </motion.div>
 
@@ -276,6 +298,39 @@ export default function Hero() {
           </motion.div>
         </motion.div>
       </div>
+      
+      {/* Tambahkan CSS untuk shadow-glow jika belum ada */}
+      <style jsx global>{`
+        .shadow-glow {
+          box-shadow: 0 0 15px rgba(0, 120, 255, 0.3);
+        }
+        
+        .typing-animation span {
+          width: 8px;
+          height: 8px;
+          background-color: rgba(255, 255, 255, 0.8);
+          border-radius: 50%;
+          display: inline-block;
+          margin: 0 2px;
+        }
+        
+        .typing-animation span:nth-child(1) {
+          animation: bounce 1s infinite 0.2s;
+        }
+        
+        .typing-animation span:nth-child(2) {
+          animation: bounce 1s infinite 0.4s;
+        }
+        
+        .typing-animation span:nth-child(3) {
+          animation: bounce 1s infinite 0.6s;
+        }
+        
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
     </section>
   );
 }
