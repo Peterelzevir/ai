@@ -29,7 +29,7 @@ export default function Features() {
     {
       image: 'dark-mode',
       title: 'Premium Dark Mode',
-      description: 'Enjoy the sleek black and white futuristic design that's easy on the eyes and gives a premium user experience.'
+      description: "Enjoy the sleek black and white futuristic design that's easy on the eyes and gives a premium user experience."
     },
     {
       image: 'modern-design',
