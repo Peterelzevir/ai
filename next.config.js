@@ -5,9 +5,6 @@ const nextConfig = {
   images: {
     domains: ['api.ryzendesu.vip'],
   },
-  experimental: {
-    serverActions: true,
-  },
 };
 
 module.exports = nextConfig;
