@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMic, FiMicOff, FiLoader, FiAlertTriangle } from 'react-icons/fi';
 import { useChatContext } from '@/context/ChatContext';
@@ -10,11 +10,15 @@ export default function VoiceInput() {
   const { sendMessage, isProcessing } = useChatContext();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [speechRecognition, setSpeechRecognition] = useState(null);
+  const [finalTranscript, setFinalTranscript] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
-
+  
+  // Use refs to prevent cleanup issues
+  const recognitionRef = useRef(null);
+  const timeoutRef = useRef(null);
+  
   // Check if browser supports speech recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -27,11 +31,19 @@ export default function VoiceInput() {
   // Clean up speech recognition on unmount
   useEffect(() => {
     return () => {
-      if (speechRecognition) {
-        speechRecognition.abort();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (err) {
+          console.error('Error stopping speech recognition:', err);
+        }
+      }
+      
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-  }, [speechRecognition]);
+  }, []);
 
   const handleStartListening = () => {
     if (isProcessing || isSpeaking || !isSupported) return;
@@ -39,37 +51,55 @@ export default function VoiceInput() {
     setError(null);
     setIsListening(true);
     setTranscript('');
+    setFinalTranscript('');
     
     try {
-      const recognition = startSpeechRecognition(
-        // onResult callback
-        (text, isFinal) => {
-          setTranscript(text);
-          
-          // If final result and meaningful text, send it
-          if (isFinal && text.trim().length > 0) {
-            handleSendVoiceMessage(text);
-          }
-        },
-        // onEnd callback
-        () => {
-          setIsListening(false);
-          
-          // If we have a transcript but speech ended without being "final",
-          // still send the message if it's meaningful
-          if (transcript.trim().length > 3) {
-            handleSendVoiceMessage(transcript);
-          }
+      const onResultCallback = (text, isFinal) => {
+        console.log("Speech recognition interim result:", text);
+        setTranscript(text); // Always update the displayed transcript
+        
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
         }
+        
+        // If final result and meaningful text, save it as final
+        if (isFinal) {
+          console.log("Speech recognition final result:", text);
+          setFinalTranscript(text);
+        }
+        
+        // Set a timeout to stop listening if no new speech is detected
+        timeoutRef.current = setTimeout(() => {
+          if (recognitionRef.current) {
+            console.log("Speech timeout - stopping recognition");
+            handleSendVoiceMessage(text);
+            recognitionRef.current.stop();
+          }
+        }, 2000);
+      };
+      
+      const onEndCallback = () => {
+        console.log("Speech recognition ended");
+        setIsListening(false);
+        
+        // Use the final transcript if available, otherwise use the last transcript
+        const textToSend = finalTranscript || transcript;
+        
+        // If we have a meaningful message, send it
+        if (textToSend && textToSend.trim().length > 2) {
+          handleSendVoiceMessage(textToSend);
+        }
+      };
+      
+      recognitionRef.current = startSpeechRecognition(
+        onResultCallback,
+        onEndCallback
       );
       
-      if (!recognition) {
-        setError("Couldn't start speech recognition. Please try again.");
+      if (!recognitionRef.current) {
+        setError("Speech recognition couldn't start. Please check browser permissions.");
         setIsListening(false);
-        return;
       }
-      
-      setSpeechRecognition(recognition);
     } catch (err) {
       console.error('Error starting speech recognition:', err);
       setError(`Couldn't access microphone. ${err.message || 'Please check permissions.'}`);
@@ -78,48 +108,59 @@ export default function VoiceInput() {
   };
 
   const handleStopListening = () => {
-    if (speechRecognition) {
+    console.log("Manually stopping speech recognition");
+    if (recognitionRef.current) {
       try {
-        speechRecognition.abort();
+        recognitionRef.current.stop(); // This will trigger onEnd event
       } catch (err) {
         console.error('Error stopping speech recognition:', err);
+        setIsListening(false);
       }
-      setIsListening(false);
+    }
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
     }
   };
 
   const handleSendVoiceMessage = async (text) => {
-    if (!text.trim() || isProcessing) return;
+    if (!text || !text.trim() || isProcessing) return;
     
-    // Stop listening while processing
-    handleStopListening();
+    const trimmedText = text.trim();
+    console.log("Sending voice message:", trimmedText);
     
-    // Send message to AI
-    const response = await sendMessage(text);
-    
-    // If we have a response, speak it
-    if (response && response.content) {
-      setIsSpeaking(true);
-      try {
-        await speakText(response.content);
-      } catch (error) {
-        console.error('Speech synthesis error:', error);
-        setError('Could not play audio response. Please check your audio settings.');
-      } finally {
-        setIsSpeaking(false);
+    try {
+      // Send message to AI
+      const response = await sendMessage(trimmedText);
+      
+      // If we have a response, speak it
+      if (response && response.content) {
+        setIsSpeaking(true);
+        try {
+          await speakText(response.content);
+        } catch (error) {
+          console.error('Speech synthesis error:', error);
+          setError('Could not play audio response. Please check your audio settings.');
+        } finally {
+          setIsSpeaking(false);
+        }
       }
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+      setError('Failed to send message. Please try again.');
     }
   };
 
+  // Modern UI for unsupported browsers
   if (!isSupported) {
     return (
-      <div className="flex flex-col space-y-3 p-2 bg-dark-800/50 rounded-lg">
+      <div className="flex flex-col space-y-3 p-4 bg-primary-700 rounded-lg border border-primary-400/20">
         <div className="flex items-center text-yellow-500">
           <FiAlertTriangle className="mr-2" />
           <span className="text-sm">Voice mode is not supported in this browser.</span>
         </div>
         <button
-          onClick={() => document.querySelector('button[title="Switch to Text Mode"]').click()}
+          onClick={() => document.querySelector('[title="Switch to Text Mode"]').click()}
           className="py-2 px-4 bg-accent text-white rounded-md text-sm w-full"
         >
           Switch to Text Mode
@@ -151,7 +192,7 @@ export default function VoiceInput() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="px-3 py-2 bg-dark-900 border border-white/10 rounded-lg text-white text-sm shadow-inner"
+            className="px-3 py-2 bg-primary-600 border border-primary-400/20 rounded-lg text-white text-sm shadow-inner"
           >
             {transcript}
           </motion.div>
@@ -159,7 +200,7 @@ export default function VoiceInput() {
       </AnimatePresence>
       
       <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-primary-300">
           {isListening 
             ? '🎤 Listening... Tap to stop'
             : isSpeaking
@@ -189,7 +230,7 @@ export default function VoiceInput() {
               ${isListening 
                 ? 'bg-red-500 text-white' 
                 : isProcessing || isSpeaking
-                  ? 'bg-dark-800 text-gray-500 cursor-not-allowed'
+                  ? 'bg-primary-600 text-primary-300 cursor-not-allowed'
                   : 'bg-accent text-white hover:bg-accent-light'
               }
               ${isListening ? 'shadow-glow' : ''}
