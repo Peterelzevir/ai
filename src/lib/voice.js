@@ -1,13 +1,13 @@
 /**
  * Web Speech API utilities for speech-to-text and text-to-speech
- * With enhanced compatibility for various browsers and devices
+ * With enhanced compatibility and silence detection
  */
 
-// Speech Recognition (Speech-to-Text)
+// Enhanced Speech Recognition with silence detection
 export const startSpeechRecognition = (onResult, onEnd) => {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     console.error('Speech recognition is not supported in this browser');
-    onEnd();
+    onEnd({ error: 'Speech recognition not supported' });
     return null;
   }
 
@@ -16,13 +16,14 @@ export const startSpeechRecognition = (onResult, onEnd) => {
     const recognition = new SpeechRecognition();
 
     // Set properties
-    recognition.lang = 'en-US'; // Default to English
-    recognition.continuous = false;
+    recognition.lang = 'id-ID';
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     let finalTranscript = '';
-    let recognitionTimeout = null;
+    let lastSpeechTimestamp = Date.now();
+    let silenceTimeout = null;
 
     // This event is triggered when speech is recognized
     recognition.onresult = (event) => {
@@ -36,22 +37,22 @@ export const startSpeechRecognition = (onResult, onEnd) => {
         }
       }
       
-      // Send the interim transcript for real-time feedback
-      onResult(interimTranscript || finalTranscript, false);
+      // Update last speech timestamp
+      lastSpeechTimestamp = Date.now();
       
-      // Reset timeout on new speech results
-      if (recognitionTimeout) {
-        clearTimeout(recognitionTimeout);
+      // Clear any existing silence timeout
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
       }
       
-      // Set timeout to stop listening if no new speech is detected
-      recognitionTimeout = setTimeout(() => {
-        if (finalTranscript || interimTranscript.length > 3) {
-          // If we have meaningful text, send final result
-          onResult(finalTranscript || interimTranscript, true);
-        }
+      // Set new silence timeout (3 seconds)
+      silenceTimeout = setTimeout(() => {
+        console.log('Silence detected for 4 seconds, stopping recording');
         recognition.stop();
-      }, 2000);
+      }, 4000);
+      
+      // Send the interim transcript for real-time feedback
+      onResult(interimTranscript || finalTranscript, false);
       
       // If we have a final result, send it
       if (finalTranscript) {
@@ -83,39 +84,45 @@ export const startSpeechRecognition = (onResult, onEnd) => {
           break;
       }
       
-      // Log the specific error
-      console.error(errorMessage);
-      
-      // Clear any pending timeouts
-      if (recognitionTimeout) {
-        clearTimeout(recognitionTimeout);
+      // Clear silence timeout
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
       }
       
-      onEnd();
+      onEnd({ error: errorMessage });
     };
 
     recognition.onend = () => {
-      // Clear any pending timeouts
-      if (recognitionTimeout) {
-        clearTimeout(recognitionTimeout);
+      // Clear silence timeout
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
       }
       
-      // Notify that recognition has ended
-      onEnd();
+      // Notify that recognition has ended with final transcript
+      onEnd({ transcript: finalTranscript });
     };
 
     // Start listening
     recognition.start();
     
-    return recognition;
+    // Return an object with the recognition instance and control methods
+    return { 
+      recognition,
+      stop: () => {
+        if (silenceTimeout) {
+          clearTimeout(silenceTimeout);
+        }
+        recognition.stop();
+      }
+    };
   } catch (error) {
     console.error('Error initializing speech recognition:', error);
-    onEnd();
+    onEnd({ error: error.message });
     return null;
   }
 };
 
-// Text-to-Speech with enhanced compatibility
+// Enhanced Text-to-Speech with better voice selection and chunking
 export const speakText = (text) => {
   return new Promise((resolve, reject) => {
     if (!('speechSynthesis' in window)) {
@@ -127,7 +134,7 @@ export const speakText = (text) => {
     window.speechSynthesis.cancel();
 
     // Split long text into smaller chunks (for better reliability)
-    const chunkLength = 150;
+    const chunkLength = 1000;
     const chunks = [];
     
     if (text.length > chunkLength) {
