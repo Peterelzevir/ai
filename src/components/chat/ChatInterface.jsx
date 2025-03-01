@@ -412,5 +412,3 @@ const ImprovedChatInterface = () => {
     </div>
   );
 };
-
-export default ImprovedChatInterface;
