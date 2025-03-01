@@ -1,12 +1,15 @@
-// /app/api/auth/logout/route.js
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
-    // Hapus cookie auth-token
+    // Hapus cookie auth-token dengan opsi yang sama saat pembuatan
     const cookieStore = cookies();
-    cookieStore.delete('auth-token');
+    cookieStore.delete('auth-token', {
+      path: '/', // Pastikan path sama dengan saat set cookie
+      // Tambahkan opsi lain yang sama dengan saat cookie dibuat
+      // httpOnly: true, secure: process.env.NODE_ENV === 'production', etc.
+    });
     
     return NextResponse.json({
       success: true,
