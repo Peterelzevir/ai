@@ -3,6 +3,8 @@ import { createUser, getUserByEmail } from '@/lib/db';
 
 export async function POST(request) {
   try {
+    console.log('Registration API called');
+    
     // Cek apakah ada body dalam request
     const contentLength = request.headers.get('content-length');
     if (!contentLength || parseInt(contentLength) === 0) {
@@ -17,6 +19,7 @@ export async function POST(request) {
     let body;
     try {
       body = await request.json();
+      console.log('Request body received:', body);
     } catch (parseError) {
       console.error('Error parsing request JSON:', parseError);
       return NextResponse.json(
@@ -27,7 +30,7 @@ export async function POST(request) {
 
     const { name, email, password } = body;
 
-    // Validasi input
+    // Validasi input - PERBAIKAN DI SINI
     if (!name || !email || !password) {
       return NextResponse.json(
         { success: false, message: 'Semua kolom harus diisi' },
@@ -88,7 +91,7 @@ export async function POST(request) {
       );
     }
 
-    // Buat token sederhana
+    // Buat token sederhana - PERBAIKAN DI SINI
     const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
 
     return NextResponse.json(
