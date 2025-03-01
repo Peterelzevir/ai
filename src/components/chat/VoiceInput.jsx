@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMic, FiMicOff, FiLoader, FiAlertTriangle } from 'react-icons/fi';
+import { FiMic, FiMicOff, FiLoader, FiAlertTriangle, FiVolume2 } from 'react-icons/fi';
 import { useChatContext } from '@/context/ChatContext';
 import { startSpeechRecognition, speakText } from '@/lib/voice';
 
@@ -10,14 +10,16 @@ export default function VoiceInput() {
   const { sendMessage, isProcessing } = useChatContext();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [finalTranscript, setFinalTranscript] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [speakingVolume, setSpeakingVolume] = useState(0);
   
   // Use refs to prevent cleanup issues
   const recognitionRef = useRef(null);
-  const timeoutRef = useRef(null);
+  const recordingTimerRef = useRef(null);
+  const speakingAnimationRef = useRef(null);
   
   // Check if browser supports speech recognition
   useEffect(() => {
@@ -28,101 +30,152 @@ export default function VoiceInput() {
     }
   }, []);
 
-  // Clean up speech recognition on unmount
+  // Clean up resources on unmount
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
+      stopRecordingTimer();
+      stopSpeakingAnimation();
+      
+      if (recognitionRef.current && recognitionRef.current.stop) {
         try {
-          recognitionRef.current.abort();
+          recognitionRef.current.stop();
         } catch (err) {
           console.error('Error stopping speech recognition:', err);
         }
       }
       
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      // Cancel any ongoing speech
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
 
+  // Update recording timer
+  const startRecordingTimer = () => {
+    setRecordingTime(0);
+    stopRecordingTimer();
+    
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingTime(prev => {
+        // Auto stop at 10 seconds if still recording
+        if (prev >= 30) {
+          stopVoiceRecording();
+          return 0;
+        }
+        return prev + 0.1;
+      });
+    }, 100);
+  };
+  
+  // Stop recording timer
+  const stopRecordingTimer = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+  
+  // Animate speaking
+  const startSpeakingAnimation = () => {
+    stopSpeakingAnimation();
+    
+    speakingAnimationRef.current = setInterval(() => {
+      setSpeakingVolume(Math.random() * 0.6 + 0.2); // Random value between 0.2 and 0.8
+    }, 150);
+  };
+  
+  // Stop speaking animation
+  const stopSpeakingAnimation = () => {
+    if (speakingAnimationRef.current) {
+      clearInterval(speakingAnimationRef.current);
+      speakingAnimationRef.current = null;
+      setSpeakingVolume(0);
+    }
+  };
+
+  // Start voice recording
   const handleStartListening = () => {
     if (isProcessing || isSpeaking || !isSupported) return;
     
     setError(null);
     setIsListening(true);
     setTranscript('');
-    setFinalTranscript('');
+    startRecordingTimer();
     
     try {
+      // Handle speech recognition results
       const onResultCallback = (text, isFinal) => {
-        console.log("Speech recognition interim result:", text);
-        setTranscript(text); // Always update the displayed transcript
-        
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        
-        // If final result and meaningful text, save it as final
-        if (isFinal) {
-          console.log("Speech recognition final result:", text);
-          setFinalTranscript(text);
-        }
-        
-        // Set a timeout to stop listening if no new speech is detected
-        timeoutRef.current = setTimeout(() => {
-          if (recognitionRef.current) {
-            console.log("Speech timeout - stopping recognition");
-            handleSendVoiceMessage(text);
-            recognitionRef.current.stop();
-          }
-        }, 2000);
+        console.log("Speech recognition result:", text, "Final:", isFinal);
+        setTranscript(text);
       };
       
-      const onEndCallback = () => {
-        console.log("Speech recognition ended");
+      // Handle end of recognition
+      const onEndCallback = (result) => {
+        console.log("Speech recognition ended", result);
         setIsListening(false);
+        stopRecordingTimer();
         
-        // Use the final transcript if available, otherwise use the last transcript
-        const textToSend = finalTranscript || transcript;
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
         
-        // If we have a meaningful message, send it
-        if (textToSend && textToSend.trim().length > 2) {
-          handleSendVoiceMessage(textToSend);
+        // If we have text, process it
+        if (result.transcript && result.transcript.trim().length > 2) {
+          handleSendVoiceMessage(result.transcript);
+        } else if (transcript && transcript.trim().length > 2) {
+          // Use the latest transcript if final wasn't provided
+          handleSendVoiceMessage(transcript);
+        } else {
+          setError("I couldn't detect any speech. Please try again.");
         }
       };
       
-      recognitionRef.current = startSpeechRecognition(
+      // Start enhanced speech recognition
+      const recognition = startSpeechRecognition(
         onResultCallback,
         onEndCallback
       );
       
-      if (!recognitionRef.current) {
+      if (!recognition) {
         setError("Speech recognition couldn't start. Please check browser permissions.");
         setIsListening(false);
+        stopRecordingTimer();
+        return;
       }
+      
+      recognitionRef.current = recognition;
+      
+      // Set maximum recording time (10 seconds)
+      setTimeout(() => {
+        if (isListening && recognitionRef.current) {
+          stopVoiceRecording();
+        }
+      }, 10000);
+      
     } catch (err) {
       console.error('Error starting speech recognition:', err);
       setError(`Couldn't access microphone. ${err.message || 'Please check permissions.'}`);
       setIsListening(false);
+      stopRecordingTimer();
     }
   };
 
-  const handleStopListening = () => {
-    console.log("Manually stopping speech recognition");
-    if (recognitionRef.current) {
+  // Stop voice recording
+  const stopVoiceRecording = () => {
+    if (recognitionRef.current && recognitionRef.current.stop) {
       try {
-        recognitionRef.current.stop(); // This will trigger onEnd event
+        recognitionRef.current.stop();
       } catch (err) {
         console.error('Error stopping speech recognition:', err);
         setIsListening(false);
+        stopRecordingTimer();
       }
-    }
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
     }
   };
 
+  // Send voice message and process response
   const handleSendVoiceMessage = async (text) => {
     if (!text || !text.trim() || isProcessing) return;
     
@@ -136,13 +189,17 @@ export default function VoiceInput() {
       // If we have a response, speak it
       if (response && response.content) {
         setIsSpeaking(true);
+        startSpeakingAnimation();
+        
         try {
           await speakText(response.content);
+          setIsSpeaking(false);
+          stopSpeakingAnimation();
         } catch (error) {
           console.error('Speech synthesis error:', error);
           setError('Could not play audio response. Please check your audio settings.');
-        } finally {
           setIsSpeaking(false);
+          stopSpeakingAnimation();
         }
       }
     } catch (error) {
@@ -202,7 +259,7 @@ export default function VoiceInput() {
       <div className="flex items-center justify-between">
         <div className="text-xs text-primary-300">
           {isListening 
-            ? '🎤 Listening... Tap to stop'
+            ? `🎤 Listening... (${recordingTime.toFixed(1)}s)`
             : isSpeaking
               ? '🔊 Speaking...'
               : isProcessing
@@ -211,19 +268,35 @@ export default function VoiceInput() {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Status indicator */}
-          {(isListening || isSpeaking) && (
+          {/* Voice status indicators */}
+          {isListening && (
             <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className={`w-2 h-2 rounded-full ${isListening ? 'bg-red-500' : 'bg-accent'}`}
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [0.7, 1, 0.7]
+              }}
+              transition={{ 
+                repeat: Infinity, 
+                duration: 1
+              }}
+              className="w-2 h-2 rounded-full bg-red-500"
+            />
+          )}
+          
+          {isSpeaking && (
+            <motion.div
+              style={{ 
+                height: `${(speakingVolume * 16) + 4}px`,
+                opacity: 0.8 + (speakingVolume * 0.2)
+              }}
+              className="w-2 rounded-full bg-accent transition-all duration-100"
             />
           )}
           
           {/* Voice button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={isListening ? handleStopListening : handleStartListening}
+            onClick={isListening ? stopVoiceRecording : handleStartListening}
             disabled={isProcessing || isSpeaking}
             className={`
               w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
@@ -243,6 +316,8 @@ export default function VoiceInput() {
               >
                 <FiLoader size={24} />
               </motion.div>
+            ) : isSpeaking ? (
+              <FiVolume2 size={24} />
             ) : isListening ? (
               <FiMicOff size={24} />
             ) : (
@@ -251,6 +326,16 @@ export default function VoiceInput() {
           </motion.button>
         </div>
       </div>
+      
+      {/* Recording progress bar */}
+      {isListening && (
+        <div className="w-full bg-primary-700/50 h-1 rounded-full overflow-hidden mt-1">
+          <motion.div 
+            className="h-full bg-red-500"
+            style={{ width: `${(recordingTime / 10) * 100}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
