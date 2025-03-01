@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiRefreshCw, FiShare2, FiMic, FiMessageSquare, FiMenu, 
   FiX, FiMaximize, FiMinimize, FiDownload, FiSettings, 
-  FiSearch, FiInfo
+  FiSearch, FiInfo, FiUser, FiLogOut, FiChevronDown
 } from 'react-icons/fi';
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
@@ -14,6 +14,7 @@ import ChatSidebar from './ChatSidebar';
 import ChatExportModal from './ChatExportModal';
 import ThemeSwitch from '@/components/ui/ThemeSwitch';
 import { useChatContext } from '@/context/ChatContext';
+import { useAuth } from '@/context/AuthContext';
 import { saveConversationForSharing } from '@/lib/api';
 import Image from 'next/image';
 
@@ -28,6 +29,8 @@ export default function ChatInterface() {
     generateShareableLink,
   } = useChatContext();
   
+  const { user, logout } = useAuth();
+  
   // UI States
   const [shareUrl, setShareUrl] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
@@ -38,8 +41,10 @@ export default function ChatInterface() {
   const [showSearchBox, setShowSearchBox] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   
   const chatContainerRef = useRef(null);
+  const userDropdownRef = useRef(null);
 
   // Check if we're on mobile & listen for resize
   useEffect(() => {
@@ -52,6 +57,20 @@ export default function ChatInterface() {
     
     return () => {
       window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -113,6 +132,17 @@ export default function ChatInterface() {
       )
     : messages;
 
+  // Handle logout
+  const handleLogout = async () => {
+    await logout();
+    // Redirect happens in the logout function
+  };
+
+  // Get first letter of name for avatar
+  const getInitial = () => {
+    return user?.name ? user.name.charAt(0).toUpperCase() : 'U';
+  };
+
   // Chat container classes
   const containerClasses = `
     ${isFullScreen ? 'fixed inset-0 z-50' : 'relative'} 
@@ -127,6 +157,7 @@ export default function ChatInterface() {
         isOpen={showSidebar} 
         toggleSidebar={toggleSidebar} 
         isMobile={isMobile} 
+        user={user}
       />
       
       <div className={containerClasses}>
@@ -160,7 +191,11 @@ export default function ChatInterface() {
               <div className="overflow-hidden">
                 <div className="text-primary-50 font-medium text-sm md:text-base truncate">AI Peter</div>
                 <div className="text-xs text-primary-300 flex items-center">
-                  <span className="w-2 h-2 rounded-full bg-green-400 mr-1"></span> Online
+                  <span className="relative flex w-2 h-2 mr-1">
+                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Online
                 </div>
               </div>
             </div>
@@ -168,6 +203,52 @@ export default function ChatInterface() {
           
           {/* Controls */}
           <div className="flex items-center gap-1">
+            {/* User profile dropdown */}
+            <div className="relative mr-2" ref={userDropdownRef}>
+              <button
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="flex items-center bg-primary-700/50 hover:bg-primary-700 p-1.5 px-3 rounded-lg transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-accent/70 text-white flex items-center justify-center text-xs font-medium mr-2">
+                  {getInitial()}
+                </div>
+                <span className="text-primary-200 text-sm hidden sm:block max-w-[100px] truncate">
+                  {user?.name || 'User'}
+                </span>
+                <FiChevronDown 
+                  size={16} 
+                  className={`ml-1 text-primary-400 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`}
+                />
+              </button>
+              
+              <AnimatePresence>
+                {showUserDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-1 bg-primary-800 border border-primary-700 rounded-md shadow-lg z-50 w-52 overflow-hidden"
+                  >
+                    <div className="py-1">
+                      <div className="px-4 py-2 border-b border-primary-700">
+                        <div className="text-primary-50 font-medium truncate">{user?.name}</div>
+                        <div className="text-primary-400 text-xs truncate">{user?.email}</div>
+                      </div>
+                      
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-2.5 text-sm text-primary-200 hover:bg-primary-700 hover:text-primary-50 transition-colors"
+                      >
+                        <FiLogOut size={16} className="mr-3 text-primary-400" />
+                        Logout
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
             {/* Search Toggle */}
             <button
               onClick={() => setShowSearchBox(!showSearchBox)}
@@ -381,7 +462,7 @@ export default function ChatInterface() {
                       height={64}
                       className="mx-auto mb-6 opacity-90"
                     />
-                    <h3 className="text-xl text-primary-50 mb-3">Welcome to AI Peter</h3>
+                    <h3 className="text-xl text-primary-50 mb-3">Welcome, {user?.name || 'User'}</h3>
                     <p className="mb-6 text-primary-200">
                       Start by sending a message and I'll respond in real-time with insightful answers.
                     </p>
@@ -406,6 +487,7 @@ export default function ChatInterface() {
                 isProcessing={isProcessing} 
                 isMobile={isMobile} 
                 searchQuery={searchQuery}
+                user={user}
               />
             )}
           </div>
