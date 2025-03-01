@@ -3,27 +3,42 @@
 @tailwind utilities;
 
 :root {
+  /* Black & White Modern Theme */
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 0, 0, 0;
-  --background-end-rgb: 10, 10, 10;
+  --background-rgb: 0, 0, 0;
   --accent-color: 99, 102, 241;
   --accent-light-color: 129, 140, 248;
 }
 
-/* Optimize for mobile performance */
+/* Ensure proper pinch zoom behavior on mobile */
+@viewport {
+  width: device-width;
+  zoom: 1.0;
+}
+
 * {
+  /* Optimize for mobile performance */
   -webkit-tap-highlight-color: transparent;
+  /* Better touch behavior */
+  touch-action: manipulation;
+}
+
+html {
+  /* Allow zooming */
+  touch-action: manipulation;
+  -ms-content-zooming: zoom;
+  -ms-touch-action: pan-x pan-y;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      rgb(var(--background-start-rgb)),
-      rgb(var(--background-end-rgb))
-    );
+  background-color: rgb(var(--background-rgb));
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom scrollbar - thinner for mobile */
@@ -33,17 +48,17 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--accent-color), 0.7);
+  background: rgba(var(--accent-color), 0.5);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--accent-color), 1);
+  background: rgba(var(--accent-color), 0.7);
 }
 
 /* Make scrollbar a bit wider on desktop */
@@ -68,26 +83,27 @@ body {
   }
 }
 
-/* Typing animation - smaller dots for mobile */
+/* Typing animation - perfectly sized dots */
 .typing-animation {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 2px;
 }
 
 .typing-animation span {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   background-color: rgba(var(--accent-color), 1);
   border-radius: 50%;
-  margin: 0 1px;
 }
 
 @media (min-width: 768px) {
   .typing-animation span {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
+    gap: 3px;
   }
 }
 
@@ -106,23 +122,7 @@ body {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-6px);
-  }
-}
-
-/* Voice pulse animation */
-.voice-pulse {
-  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.05);
+    transform: translateY(-5px);
   }
 }
 
@@ -190,71 +190,87 @@ body {
   }
 }
 
-/* Glass effect - reduced blur for better performance */
-.glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Shadow glow - reduced for better performance */
+/* Shadow glow - soft and elegant */
 .shadow-glow {
-  box-shadow: 0 0 15px rgba(var(--accent-color), 0.3);
+  box-shadow: 0 0 15px rgba(var(--accent-color), 0.2);
 }
 
-/* New loading animation for page transitions */
-.page-transition-enter {
-  opacity: 0;
-  transform: translateY(10px);
+.shadow-glow:hover {
+  box-shadow: 0 0 20px rgba(var(--accent-color), 0.4);
 }
 
-.page-transition-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms, transform 300ms;
+/* Loading spinner animation */
+@keyframes spinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.page-transition-exit {
-  opacity: 1;
-  transform: translateY(0);
+.animate-spinner {
+  animation: spinner 0.8s linear infinite;
 }
 
-.page-transition-exit-active {
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: opacity 300ms, transform 300ms;
+/* Page transition effects */
+.page-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Utility classes for common patterns */
 .text-gradient {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-accent-light;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-50 to-accent-light;
 }
 
 .button-hover {
   @apply transition-all duration-200 hover:shadow-glow;
 }
 
-.content-container {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-}
-
-/* Page section styling */
-.page-section {
-  @apply py-12 md:py-16 lg:py-20;
-}
-
-/* Responsive text sizing */
-.text-responsive {
-  @apply text-sm sm:text-base;
-}
-
-.heading-responsive {
-  @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl;
-}
-
 /* Focus styles that maintain the black and white aesthetic */
 *:focus-visible {
   outline: 2px solid rgba(var(--accent-color), 0.5);
   outline-offset: 2px;
+}
+
+/* Improve text readability */
+.prose {
+  @apply text-primary-200 leading-relaxed;
+}
+
+.prose strong {
+  @apply text-primary-50 font-semibold;
+}
+
+.prose a {
+  @apply text-accent hover:text-accent-light underline;
+}
+
+/* Chat interface specific styles */
+.chat-container {
+  @apply max-w-4xl mx-auto bg-primary-800 rounded-xl shadow-lg overflow-hidden border border-primary-700/50;
+}
+
+.chat-message {
+  @apply px-4 py-3 rounded-lg;
+}
+
+.chat-message-user {
+  @apply bg-accent/10 text-primary-50;
+}
+
+.chat-message-bot {
+  @apply bg-primary-800 text-primary-50;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .mobile-optimize {
+    @apply text-sm;
+  }
+  
+  .mobile-padding {
+    @apply px-3 py-2;
+  }
 }
