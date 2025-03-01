@@ -3,29 +3,38 @@ import { createUser, getUserByEmail } from '@/lib/db';
 
 export async function POST(request) {
   try {
+    // Cek apakah ada body dalam request
+    const contentLength = request.headers.get('content-length');
+    if (!contentLength || parseInt(contentLength) === 0) {
+      console.error('Request body is empty');
+      return NextResponse.json(
+        { success: false, message: 'Permintaan tidak boleh kosong' },
+        { status: 400 }
+      );
+    }
+
     // Parse request body dengan error handling
     let body;
     try {
       body = await request.json();
     } catch (parseError) {
-      console.error('Error parsing request:', parseError);
+      console.error('Error parsing request JSON:', parseError);
       return NextResponse.json(
         { success: false, message: 'Format permintaan tidak valid' },
         { status: 400 }
       );
     }
-    
+
     const { name, email, password } = body;
-    
-    // Validasi data
+
+    // Validasi input
     if (!name || !email || !password) {
       return NextResponse.json(
         { success: false, message: 'Semua kolom harus diisi' },
         { status: 400 }
       );
     }
-    
-    // Validasi email format
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -33,24 +42,18 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    
-    // Validasi password length
+
     if (password.length < 6) {
       return NextResponse.json(
         { success: false, message: 'Password minimal 6 karakter' },
         { status: 400 }
       );
     }
-    
-    // Cek apakah email sudah terdaftar
+
+    // Cek apakah email sudah ada
+    let existingUser;
     try {
-      const existingUser = await getUserByEmail(email);
-      if (existingUser) {
-        return NextResponse.json(
-          { success: false, message: 'Email sudah terdaftar' },
-          { status: 400 }
-        );
-      }
+      existingUser = await getUserByEmail(email);
     } catch (checkError) {
       console.error('Check user error:', checkError);
       return NextResponse.json(
@@ -58,30 +61,36 @@ export async function POST(request) {
         { status: 500 }
       );
     }
-    
-    // Buat user baru dengan error handling terpisah
+
+    if (existingUser) {
+      return NextResponse.json(
+        { success: false, message: 'Email sudah terdaftar' },
+        { status: 400 }
+      );
+    }
+
+    // Buat user baru
     let user;
     try {
       user = await createUser({ name, email, password });
     } catch (createError) {
       console.error('Create user error:', createError);
       return NextResponse.json(
-        { success: false, message: createError.message || 'Gagal membuat pengguna baru' },
+        { success: false, message: 'Gagal membuat pengguna baru' },
         { status: 500 }
       );
     }
-    
+
     if (!user || !user.id) {
       return NextResponse.json(
         { success: false, message: 'Gagal membuat pengguna' },
         { status: 500 }
       );
     }
-    
-    // Buat token otentikasi sederhana (seharusnya JWT di produksi)
+
+    // Buat token sederhana
     const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
-    
-    // Berhasil, kembalikan respon sukses
+
     return NextResponse.json(
       { 
         success: true, 
@@ -98,7 +107,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Terjadi kesalahan saat mendaftar' },
+      { success: false, message: 'Terjadi kesalahan saat mendaftar' },
       { status: 500 }
     );
   }
