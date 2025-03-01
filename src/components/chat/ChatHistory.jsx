@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { FiUser } from 'react-icons/fi';
 
 export default function ChatHistory({ messages, isProcessing, isMobile = false }) {
   const lastMessageRef = useRef(null);
@@ -20,87 +21,114 @@ export default function ChatHistory({ messages, isProcessing, isMobile = false }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {messages.map((message, index) => {
         const isLastMessage = index === messages.length - 1;
         const isUser = message.role === 'user';
         
         return (
-          <motion.div
+          <div
             key={message.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
             ref={isLastMessage ? lastMessageRef : null}
+            className="w-full"
           >
-            <div className={`max-w-[85%] sm:max-w-[80%] md:max-w-[70%] flex ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-2`}>
-              {/* Avatar - only show for assistant */}
-              {!isUser && (
-                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-accent flex-shrink-0 flex items-center justify-center text-white text-xs overflow-hidden">
-                  <Image 
-                    src="/images/avatar.svg" 
-                    alt="AI" 
-                    width={32} 
-                    height={32} 
-                    className="w-full h-full"
-                  />
-                </div>
-              )}
+            {/* Message container with avatar */}
+            <div className={`flex items-start gap-3 group px-1 ${isUser ? 'justify-start flex-row-reverse' : 'justify-start'}`}>
+              {/* Avatar */}
+              <div className={`flex-shrink-0 ${isUser ? 'ml-2' : 'mr-2'}`}>
+                {isUser ? (
+                  <div className="w-7 h-7 rounded-full bg-primary-600 flex items-center justify-center text-primary-50">
+                    <FiUser size={14} />
+                  </div>
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-white overflow-hidden">
+                    <Image 
+                      src="/images/avatar.svg" 
+                      alt="AI" 
+                      width={28} 
+                      height={28} 
+                      className="w-full h-full"
+                    />
+                  </div>
+                )}
+              </div>
               
               {/* Message content */}
-              <div className={`${isMobile ? 'max-w-[calc(100%-32px)]' : ''}`}>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex-1 max-w-[85%]"
+              >
+                {/* Name */}
+                <div className="text-xs font-medium mb-1 text-primary-300">
+                  {isUser ? 'You' : 'AI Peter'}
+                </div>
+                
+                {/* Message bubble */}
                 <div 
                   className={`
-                    px-3 py-2 sm:px-4 sm:py-3 rounded-2xl text-sm sm:text-base chat-bubble-appear
+                    rounded-lg whitespace-pre-wrap text-sm leading-6
                     ${isUser 
-                      ? 'bg-accent text-white rounded-tr-none' 
+                      ? 'bg-accent/10 text-primary-50' 
                       : message.isError
-                        ? 'bg-red-500/20 text-white border border-red-500/40 rounded-tl-none'
-                        : 'bg-dark-800 text-white border border-white/10 rounded-tl-none'
+                        ? 'bg-red-500/10 text-primary-50 border border-red-500/30'
+                        : 'bg-primary-800 text-primary-50'
                     }
+                    px-4 py-3
                   `}
                 >
                   {message.content}
                 </div>
                 
-                {/* Timestamp */}
-                <div className={`text-[10px] sm:text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
-                  {formatDate(message.timestamp)}
+                {/* Bottom info bar with timestamp */}
+                <div className="flex items-center mt-1 text-[10px] text-primary-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>{formatDate(message.timestamp)}</span>
                 </div>
-              </div>
+              </motion.div>
             </div>
-          </motion.div>
+          </div>
         );
       })}
       
       {/* Processing indicator (typing animation) */}
       {isProcessing && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex justify-start"
-        >
-          <div className="max-w-[85%] sm:max-w-[80%] md:max-w-[70%] flex flex-row items-start gap-2">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-accent flex-shrink-0 flex items-center justify-center text-white text-xs overflow-hidden">
-              <Image 
-                src="/images/avatar.svg" 
-                alt="AI" 
-                width={32} 
-                height={32} 
-                className="w-full h-full"
-              />
-            </div>
-            <div className="px-3 py-2 sm:px-4 sm:py-3 rounded-2xl bg-dark-800 text-white border border-white/10 rounded-tl-none">
-              <div className="typing-animation flex items-center justify-center h-5">
-                <span></span>
-                <span></span>
-                <span></span>
+        <div className="w-full">
+          <div className="flex items-start gap-3">
+            {/* Avatar */}
+            <div className="flex-shrink-0 mr-2">
+              <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-white overflow-hidden">
+                <Image 
+                  src="/images/avatar.svg" 
+                  alt="AI" 
+                  width={28} 
+                  height={28} 
+                  className="w-full h-full"
+                />
               </div>
             </div>
+            
+            {/* Typing indicator */}
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex-1"
+            >
+              <div className="text-xs font-medium mb-1 text-primary-300">
+                AI Peter
+              </div>
+              
+              <div className="flex items-center bg-primary-800 rounded-lg px-4 py-3 h-10">
+                <div className="typing-animation flex">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );
