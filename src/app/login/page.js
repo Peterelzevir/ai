@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
@@ -39,6 +40,47 @@ export default function LoginPage() {
     duration: Math.random() * 20 + 10
   }));
 
+  // Direct API login function that matches the API route implementation
+  const loginWithAPI = async (credentials) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(credentials)
+      });
+      
+      // Get the response JSON
+      const data = await response.json();
+      
+      // Check if the request was successful
+      if (!response.ok) {
+        throw new Error(data.message || 'Terjadi kesalahan saat login');
+      }
+      
+      // If successful and we want to remember the user, store the token
+      // Note: The API already sets an HTTP-only cookie, but we can also
+      // store the token in localStorage as a fallback for client-side auth checks
+      if (rememberMe && data.token) {
+        localStorage.setItem('authToken', data.token);
+      }
+      
+      return { 
+        success: true, 
+        data,
+        user: data.user
+      };
+    } catch (error) {
+      console.error('Login API error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Terjadi kesalahan pada server' 
+      };
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -59,8 +101,27 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       
-      // Login menggunakan API yang sebenarnya
-      const result = await login(email, password);
+      // Prepare credentials
+      const credentials = {
+        email,
+        password
+      };
+      
+      // First try to use the login method from AuthContext if available
+      let result;
+      
+      if (typeof login === 'function') {
+        try {
+          // Pass the rememberMe flag to the context login if it supports it
+          result = await login(email, password, rememberMe);
+        } catch (contextError) {
+          console.warn('Context login failed, using direct API', contextError);
+          result = await loginWithAPI(credentials);
+        }
+      } else {
+        // If login is not available in context, use direct API call
+        result = await loginWithAPI(credentials);
+      }
       
       if (!result.success) {
         setError(result.error || 'Email atau password salah');
@@ -338,6 +399,8 @@ export default function LoginPage() {
                         <input
                           id="remember-me"
                           type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
                           className="h-4 w-4 rounded border-primary-600 text-accent focus:ring-accent/30 bg-primary-700"
                         />
                         <label htmlFor="remember-me" className="ml-2 block text-sm text-primary-300">
