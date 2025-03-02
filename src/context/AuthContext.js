@@ -15,12 +15,23 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const checkLoggedIn = async () => {
       try {
+        console.log('Checking authentication status...');
         const response = await fetch('/api/auth/me');
+        
+        if (!response.ok) {
+          console.log('Auth check returned non-OK status:', response.status);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
         const data = await response.json();
         
         if (data.success) {
+          console.log('User authenticated:', data.user);
           setUser(data.user);
         } else {
+          console.log('User not authenticated');
           setUser(null);
         }
       } catch (error) {
@@ -30,13 +41,15 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     };
-
+    
     checkLoggedIn();
   }, []);
 
   // Fungsi login
   const login = async (email, password) => {
     try {
+      console.log('Attempting login for:', email);
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -45,11 +58,21 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ email, password }),
       });
       
-      const data = await response.json();
-      
+      // Check for non-JSON responses
       if (!response.ok) {
-        throw new Error(data.message || 'Gagal login');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Gagal login');
+        } else {
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          throw new Error(`Server error (${response.status}): Gagal login`);
+        }
       }
+      
+      const data = await response.json();
+      console.log('Login successful');
       
       setUser(data.user);
       return { success: true };
@@ -65,6 +88,8 @@ export function AuthProvider({ children }) {
   // Fungsi register
   const register = async (userData) => {
     try {
+      console.log('Registering user with data:', { ...userData, password: '***' });
+      
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -73,16 +98,34 @@ export function AuthProvider({ children }) {
         body: JSON.stringify(userData),
       });
       
-      const data = await response.json();
+      console.log('Register response status:', response.status);
       
+      // Handle non-OK responses more carefully
       if (!response.ok) {
-        throw new Error(data.message || 'Gagal mendaftar');
+        const contentType = response.headers.get('content-type');
+        console.log('Response content type:', contentType);
+        
+        if (contentType && contentType.includes('application/json')) {
+          // If it's JSON, parse it normally
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Gagal mendaftar');
+        } else {
+          // If it's not JSON (like HTML error page), get the text
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText.substring(0, 200)); // Log just the start
+          throw new Error(`Server error (${response.status}): Gagal mendaftar`);
+        }
       }
+      
+      // Safe to parse JSON for successful responses
+      const data = await response.json();
+      console.log('Registration successful, attempting auto-login');
       
       // Login otomatis setelah pendaftaran berhasil
       const loginResult = await login(userData.email, userData.password);
       
       if (!loginResult.success) {
+        console.warn('Auto-login failed after registration');
         throw new Error('Pendaftaran berhasil tetapi gagal login otomatis');
       }
       
@@ -99,6 +142,8 @@ export function AuthProvider({ children }) {
   // Fungsi logout
   const logout = async () => {
     try {
+      console.log('Logging out user');
+      
       await fetch('/api/auth/logout', {
         method: 'POST',
       });
@@ -120,6 +165,7 @@ export function AuthProvider({ children }) {
   // Fungsi untuk memproteksi route
   const requireAuth = (callback) => {
     if (!isAuthenticated()) {
+      console.log('Authentication required, redirecting to login');
       router.push('/login');
       return false;
     }
