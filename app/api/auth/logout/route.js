@@ -7,8 +7,9 @@ export async function POST() {
     const cookieStore = cookies();
     cookieStore.delete('auth-token', {
       path: '/', // Pastikan path sama dengan saat set cookie
-      // Tambahkan opsi lain yang sama dengan saat cookie dibuat
-      // httpOnly: true, secure: process.env.NODE_ENV === 'production', etc.
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Hanya HTTPS di production
+      sameSite: 'lax',
     });
     
     return NextResponse.json({
