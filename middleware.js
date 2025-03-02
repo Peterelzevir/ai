@@ -2,44 +2,103 @@
 import { NextResponse } from 'next/server';
 import { verify } from 'jsonwebtoken';
 
-// Rute yang memerlukan autentikasi
-const protectedRoutes = ['/chat'];
-
 // Secret key untuk JWT - gunakan .env di aplikasi nyata
 const JWT_SECRET = process.env.JWT_SECRET || 'ai-peter-secret-key-change-this';
 
-export function middleware(request) {
-  const { pathname } = request.nextUrl;
+// Rute yang memerlukan autentikasi
+const PROTECTED_ROUTES = ['/chat', '/profile', '/settings', '/api/chat'];
+// Rute publik yang tidak perlu redirect (login, register, dll)
+const PUBLIC_AUTH_ROUTES = ['/login', '/register', '/forgot-password'];
 
-  // Cek apakah rute saat ini memerlukan autentikasi
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-
-  // Jika bukan rute yang dilindungi, lanjutkan tanpa cek
-  if (!isProtectedRoute) {
-    return NextResponse.next();
+/**
+ * Extract and verify JWT token from various sources
+ * @param {Request} request - Next.js request object
+ * @returns {Object|null} The decoded token payload or null if invalid
+ */
+function getTokenPayload(request) {
+  let token = null;
+  
+  // 1. Check for cookie token first (primary auth method)
+  const authCookie = request.cookies.get('auth-token')?.value;
+  if (authCookie) {
+    token = authCookie;
+  } 
+  
+  // 2. Check Authorization header as fallback (for API clients)
+  if (!token) {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
   }
-
-  // Ambil token dari cookie
-  const authToken = request.cookies.get('auth-token')?.value;
-
-  // Jika tidak ada token, redirect ke halaman login
-  if (!authToken) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  
+  // If no token found, return null
+  if (!token) {
+    return null;
   }
-
+  
+  // Verify token
   try {
-    // Verifikasi token
-    verify(authToken, JWT_SECRET);
-    
-    // Token valid, lanjutkan
-    return NextResponse.next();
+    const payload = verify(token, JWT_SECRET);
+    return payload;
   } catch (error) {
-    // Token tidak valid, redirect ke halaman login
-    return NextResponse.redirect(new URL('/login', request.url));
+    console.error('Token verification failed:', error.message);
+    return null;
   }
 }
 
-// Konfigurasi untuk middleware
+export function middleware(request) {
+  const { pathname } = request.nextUrl;
+  
+  // Check if this is a protected route
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
+  
+  // If not a protected route, allow without verification
+  if (!isProtectedRoute) {
+    return NextResponse.next();
+  }
+  
+  // Get token payload
+  const tokenPayload = getTokenPayload(request);
+  
+  // If token is valid, allow the request
+  if (tokenPayload) {
+    // Optional: Add user info to headers for downstream use
+    const response = NextResponse.next();
+    response.headers.set('X-User-ID', tokenPayload.id);
+    response.headers.set('X-User-Email', tokenPayload.email);
+    return response;
+  }
+  
+  // If API route, return 401 Unauthorized
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json(
+      { success: false, message: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+  
+  // For non-API routes, redirect to login
+  const url = new URL('/login', request.url);
+  
+  // Add the original URL as a parameter to redirect back after login
+  url.searchParams.set('from', pathname);
+  
+  return NextResponse.redirect(url);
+}
+
+// Configuration: which routes to run the middleware on
 export const config = {
-  matcher: ['/chat/:path*'] // Terapkan middleware ke semua rute /chat dan sub-rutesnya
+  matcher: [
+    // Match all routes that need protection
+    '/chat/:path*',
+    '/profile/:path*', 
+    '/settings/:path*',
+    '/api/chat/:path*',
+    
+    // Exclude static files and api routes that don't need protection
+    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
+  ],
 };
