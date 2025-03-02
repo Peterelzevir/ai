@@ -24,7 +24,7 @@ export default function RegisterPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   
   const router = useRouter();
-  const { register, isAuthenticated } = useAuth();
+  const { register, isAuthenticated, login } = useAuth();
 
   // Redirect jika sudah login
   useEffect(() => {
@@ -95,6 +95,52 @@ export default function RegisterPage() {
     setError('');
   };
 
+  // Direct API registration function that matches the API route implementation
+  const registerWithAPI = async (userData) => {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(userData)
+      });
+      
+      // Get the response JSON
+      const data = await response.json();
+      
+      // Check if the request was successful
+      if (!response.ok) {
+        throw new Error(data.message || 'Terjadi kesalahan saat mendaftar');
+      }
+      
+      // If successful, save the token if login isn't handled by the AuthContext
+      if (data.token) {
+        // This is optional and depends on your authentication approach
+        // You might want to store the token in localStorage or cookies
+        localStorage.setItem('authToken', data.token);
+        
+        // If there's a login function in the auth context, you might want to use it
+        if (login) {
+          await login(email, password);
+        }
+      }
+      
+      return { 
+        success: true, 
+        data,
+        user: data.user
+      };
+    } catch (error) {
+      console.error('Registration API error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Terjadi kesalahan pada server' 
+      };
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -105,9 +151,9 @@ export default function RegisterPage() {
       return;
     }
     
-    // Password strength validation
-    if (passwordScore < 3) {
-      setError('Password terlalu lemah. Gunakan kombinasi huruf, angka, dan karakter khusus');
+    // Password strength validation - adjusted to match the API's minimum requirement
+    if (password.length < 6) {
+      setError('Password minimal 6 karakter');
       return;
     }
     
@@ -126,8 +172,27 @@ export default function RegisterPage() {
     try {
       setIsLoading(true);
       
-      // Register menggunakan API yang sebenarnya
-      const result = await register({ name, email, password });
+      // Prepare user data matching the API's expected format
+      const userData = {
+        name,
+        email,
+        password
+      };
+      
+      // First try to use the register method from AuthContext if available
+      let result;
+      
+      if (typeof register === 'function') {
+        try {
+          result = await register(userData);
+        } catch (contextError) {
+          console.warn('Context register failed, using direct API', contextError);
+          result = await registerWithAPI(userData);
+        }
+      } else {
+        // If register is not available in context, use direct API call
+        result = await registerWithAPI(userData);
+      }
       
       if (!result.success) {
         setError(result.error || 'Gagal mendaftar. Silakan coba lagi.');
@@ -257,7 +322,7 @@ export default function RegisterPage() {
                 <h2 className="text-2xl font-bold text-primary-50 mb-2">Pendaftaran Berhasil!</h2>
                 <p className="text-primary-300 text-center">Akun Anda telah dibuat. Mengalihkan ke halaman chat...</p>
                 
-                {/* Confetti effect - FIXED to use complete class names */}
+                {/* Confetti effect */}
                 {Array.from({ length: 50 }).map((_, i) => (
                   <motion.div
                     key={`confetti-${i}`}
