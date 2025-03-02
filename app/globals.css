@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* Import Prism Theme */
-@import '../styles/prism-theme.css';
+@import '@/styles/prism-theme.css';
 
 :root {
   /* Black & White Modern Theme */
