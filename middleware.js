@@ -1,9 +1,9 @@
-// middleware.js
 import { NextResponse } from 'next/server';
-import { verify } from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 // Secret key untuk JWT - gunakan .env di aplikasi nyata
 const JWT_SECRET = process.env.JWT_SECRET || 'ai-peter-secret-key-change-this';
+const JWT_SECRET_KEY = new TextEncoder().encode(JWT_SECRET); // Ubah menjadi key Uint8Array
 
 // Rute yang memerlukan autentikasi
 const PROTECTED_ROUTES = ['/chat', '/profile', '/settings', '/api/chat'];
@@ -15,15 +15,15 @@ const PUBLIC_AUTH_ROUTES = ['/login', '/register', '/forgot-password'];
  * @param {Request} request - Next.js request object
  * @returns {Object|null} The decoded token payload or null if invalid
  */
-function getTokenPayload(request) {
+async function getTokenPayload(request) {
   let token = null;
-  
+
   // 1. Check for cookie token first (primary auth method)
   const authCookie = request.cookies.get('auth-token')?.value;
   if (authCookie) {
     token = authCookie;
-  } 
-  
+  }
+
   // 2. Check Authorization header as fallback (for API clients)
   if (!token) {
     const authHeader = request.headers.get('Authorization');
@@ -31,15 +31,15 @@ function getTokenPayload(request) {
       token = authHeader.substring(7);
     }
   }
-  
+
   // If no token found, return null
   if (!token) {
     return null;
   }
-  
-  // Verify token
+
+  // Verify token using jose
   try {
-    const payload = verify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, JWT_SECRET_KEY);
     return payload;
   } catch (error) {
     console.error('Token verification failed:', error.message);
@@ -47,22 +47,22 @@ function getTokenPayload(request) {
   }
 }
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
-  
+
   // Check if this is a protected route
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => 
+  const isProtectedRoute = PROTECTED_ROUTES.some(route =>
     pathname === route || pathname.startsWith(`${route}/`)
   );
-  
+
   // If not a protected route, allow without verification
   if (!isProtectedRoute) {
     return NextResponse.next();
   }
-  
+
   // Get token payload
-  const tokenPayload = getTokenPayload(request);
-  
+  const tokenPayload = await getTokenPayload(request);
+
   // If token is valid, allow the request
   if (tokenPayload) {
     // Optional: Add user info to headers for downstream use
@@ -71,7 +71,7 @@ export function middleware(request) {
     response.headers.set('X-User-Email', tokenPayload.email);
     return response;
   }
-  
+
   // If API route, return 401 Unauthorized
   if (pathname.startsWith('/api/')) {
     return NextResponse.json(
@@ -79,26 +79,21 @@ export function middleware(request) {
       { status: 401 }
     );
   }
-  
+
   // For non-API routes, redirect to login
   const url = new URL('/login', request.url);
-  
-  // Add the original URL as a parameter to redirect back after login
-  url.searchParams.set('from', pathname);
-  
+  url.searchParams.set('from', pathname); // Add redirect parameter
+
   return NextResponse.redirect(url);
 }
 
 // Configuration: which routes to run the middleware on
 export const config = {
   matcher: [
-    // Match all routes that need protection
     '/chat/:path*',
-    '/profile/:path*', 
+    '/profile/:path*',
     '/settings/:path*',
     '/api/chat/:path*',
-    
-    // Exclude static files and api routes that don't need protection
     '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
   ],
 };
