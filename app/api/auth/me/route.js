@@ -3,11 +3,13 @@ export const dynamic = 'force-dynamic'; // Prevent caching for this route
 
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verify } from 'jsonwebtoken';
+import { jwtVerify, SignJWT } from 'jose'; // Ganti jsonwebtoken dengan jose
 import { getUserById } from '@/lib/db';
 
 // Secret key untuk JWT - gunakan .env di aplikasi nyata
 const JWT_SECRET = process.env.JWT_SECRET || 'ai-peter-secret-key-change-this';
+// Siapkan secret key dalam format yang diperlukan jose
+const getSecretKey = () => new TextEncoder().encode(JWT_SECRET);
 
 /**
  * Extract token from various sources
@@ -49,10 +51,17 @@ export async function GET(request) {
       );
     }
     
-    // Verify token
+    // Verify token dengan jose
     let payload;
     try {
-      payload = verify(token, JWT_SECRET);
+      const { payload: verifiedPayload } = await jwtVerify(
+        token, 
+        getSecretKey(),
+        {
+          algorithms: ['HS256']
+        }
+      );
+      payload = verifiedPayload;
     } catch (verifyError) {
       console.error('Token verification failed:', verifyError.message);
       return NextResponse.json(
@@ -71,6 +80,9 @@ export async function GET(request) {
       );
     }
     
+    // Periksa apakah token hampir kedaluwarsa
+    const needsRefresh = payload.exp && Date.now() >= (payload.exp * 1000 - 15 * 60 * 1000);
+    
     // Return user data (success)
     return NextResponse.json({
       success: true,
@@ -81,8 +93,8 @@ export async function GET(request) {
         // You can include additional non-sensitive user data here
       },
       // Optionally return a refreshed token if it's about to expire
-      ...(payload.exp && Date.now() >= (payload.exp * 1000 - 15 * 60 * 1000) ? { 
-        token: refreshToken(user)
+      ...(needsRefresh ? { 
+        token: await refreshToken(user)
       } : {})
     });
   } catch (error) {
@@ -97,18 +109,16 @@ export async function GET(request) {
 /**
  * Helper function to refresh token
  * @param {Object} user - User data
- * @returns {string} New JWT token
+ * @returns {Promise<string>} New JWT token
  */
-function refreshToken(user) {
-  const { sign } = require('jsonwebtoken');
-  
-  return sign(
-    { 
-      id: user.id, 
-      email: user.email,
-      name: user.name 
-    },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+async function refreshToken(user) {
+  return new SignJWT({ 
+    id: user.id, 
+    email: user.email,
+    name: user.name 
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(getSecretKey());
 }
